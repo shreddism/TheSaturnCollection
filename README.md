@@ -1,2 +1,1 @@
-# TheSaturnCollection
-The Enhanced Filter Experience.
+# The Saturn Collection
