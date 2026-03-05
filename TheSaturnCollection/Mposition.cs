@@ -289,6 +289,7 @@ namespace Saturn
                 if (emergency > 0) {
                     report.Position = pos[0];
                     startOutput = pos[0];
+                    report.Pressure = pressure[0];
                     InsertAtFirst(smpos, pos[0]);
                     InsertAtFirst(stpos, pos[0]);
                     InsertAtFirst(prpos, pos[0]);
