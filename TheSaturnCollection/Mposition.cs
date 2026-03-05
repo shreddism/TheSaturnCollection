@@ -175,14 +175,29 @@ namespace Saturn
 
         [Property("Area Scale"), DefaultPropertyValue(0.75f), ToolTip
         (
-            "Possible range: 0.01f - 5f, default 0.75\n\n" +
-            "Multiplies every unseen area-subjective threshold in the code."
+            "Possible range: 0.01 - 5, default 0.75\n\n" +
+            "Multiplies every area-subjective threshold, like the ones used in Accel Response Aggressiveness."
         )]
         public float areaScale { 
             set => _areaScale = Math.Clamp(value, 0.01f, 5f);
             get => _areaScale;
         }
         public float _areaScale;
+
+        [Property("X Modifier"), DefaultPropertyValue(1f), ToolTip
+        (
+            "Possible range: 0.01 - 100, default 1\n\n" +
+            "Acts as aspect ratio compensation.\n" +
+            "If you want to make sure this is display-consistent,\n" +
+            "divide your display area setting's aspect ratio (number in the middle)\n" +
+            "by your tablet area setting's aspect ratio.\n" +
+            "Enter the result here."
+        )]
+        public float xMod { 
+            set => _xMod = Math.Clamp(value, 0.01f, 100f);
+            get => _xMod;
+        }
+        public float _xMod;
 
         [Property("Wacom PTK-x70 Series Toggle"), DefaultPropertyValue(false), ToolTip
         (
@@ -280,12 +295,22 @@ namespace Saturn
                     
                     if (eflag) {
                         if (rInner > 0f) RF();
-                        else ringOutput = startOutput;
-                        
-                        AEMA();
-                        float cTime = ((float)reportStopwatch.Elapsed.TotalSeconds * Frequency / reportMsAvg) * (expect);
-                        float scale = Math.Min((((float)(5 - emergency) + Math.Min(cTime, 1.0f)) * 0.2f), 1.0f);
-                        report.Position = Vector2.Lerp(lastOutputPos, aemaOutput, scale);
+                        else {
+                            moveOk = true;
+                            ringOutput = startOutput;
+                        }
+    
+                        if (moveOk) {
+                            AEMA();
+                            float cTime = ((float)reportStopwatch.Elapsed.TotalSeconds * Frequency / reportMsAvg) * (expect);
+                            float scale = Math.Min((((float)(5 - emergency) + Math.Min(cTime, 1.0f)) * 0.2f), 1.0f);
+                            report.Position = Vector2.Lerp(lastOutputPos, aemaOutput, scale);
+                            emPos = report.Position;
+                        }
+                        else {
+                            aemaOutput = lastOutputPos;
+                            report.Position = aemaOutput;
+                        }
                     }
                     else { 
                         aemaOutput = pos[0];
@@ -312,16 +337,6 @@ namespace Saturn
                     moveOk = true;
                     ringOutput = startOutput;
                 }
-
-                if (moveOk) {
-                    Vector2 hard = hcToggle ? smpos[0] + (prpos[0] - smpos[0]) : smpos[0];
-                    float cWeight = Math.Min(1.0f, WireMultAdjust(adjdWeight, expect, updateTime, wire));
-                    float dWeight = cWeight * FSmoothstep(accel[0], -10 * areaScale, -200 * areaScale);
-                    startOutput = Vector2.Lerp(startOutput, hard, cWeight);
-                    startOutput = Vector2.Lerp(startOutput, smpos[0], dWeight);
-                    ringOutput = Vector2.Lerp(ringOutput, hard, cWeight);
-                    ringOutput = Vector2.Lerp(ringOutput, smpos[0], dWeight);
-                } 
               
                 AEMA();
 
@@ -332,7 +347,7 @@ namespace Saturn
 
                 
 
-                if (!vec2IsFinite(report.Position + ringOutput + iRingPos0 + startOutput)) {
+                if (!vec2IsFinite(report.Position + ringOutput + aemaOutput + startOutput)) {
                     report.Position = pos[0];
                     aemaOutput = pos[0];
                     startOutput = pos[0];
@@ -345,7 +360,10 @@ namespace Saturn
                     OnEmit();
                     return;
                 }
-               // Plot();
+                else {
+                    emPos = report.Position;
+                }
+              //  Plot();
 
 
              //   Console.WriteLine(dirOfOutput);
@@ -360,13 +378,16 @@ namespace Saturn
 
         void StatUpdate(ITabletReport report) {
             InsertAtFirst(pos, report.Position);
+            
             Vector2 smoothed = pos[0];
             if (reverseSmoothing < 1f && reverseSmoothing > 0f)
                 smoothed = pos[1] + (pos[0] - pos[1]) / reverseSmoothing;
+
             InsertAtFirst(smpos, smoothed);
             InsertAtFirst(pressure, report.Pressure);
             InsertAtFirst(dir, smpos[0] - smpos[1]);
-            InsertAtFirst(vel, dir[0].Length());
+            InsertAtFirst(adjDir, new Vector2(dir[0].X * xMod, dir[0].Y));
+            InsertAtFirst(vel, adjDir[0].Length());
             InsertAtFirst(ddir, dir[0] - dir[1]);
             InsertAtFirst(accel, vel[0] - vel[1]);
             InsertAtFirst(jerk, accel[0] - accel[1]);
@@ -376,12 +397,9 @@ namespace Saturn
           //  Console.WriteLine(Vector2.Distance(pos[0], stpos[0]));
             
             Vector2 predict = stpos[0];
-            crPoint = pos[0];
             if (frameShift > 0f) {
                 predict = kf.Update(stpos[0], secAvg);
-                crPoint = kf.Update(pos[0], secAvg);
                 predict += (stpos[0] - predict) * (1f - frameShift);
-                crPoint += (pos[0] - crPoint) * (1f - frameShift);
             }
 
             tOffset += secAvg - consumeDelta;
@@ -425,9 +443,9 @@ namespace Saturn
         }
 
         void DAC() {
-            if (dacInner + dacOuter > 0f) {
+            if (dacInner + dacOuter + vOuter > 0f) {
                 float vscale = FSmoothstep(vel[0], 5, 10 + dacOuter);
-                float scale = MathF.Pow(FSmoothstep(Math.Max(pointaccel[0], Vector2.Distance(stdir[0], dir[0])), Math.Max(0, vscale * dacInner), 0.01f + (vscale * adjDacOuter)), 3);
+                float scale = MathF.Pow(FSmoothstep(Math.Max(pointaccel[0], Vector2.Distance(stdir[0], dir[0])), Math.Max(0, vscale * dacInner) - 0.01f, (vscale * adjDacOuter)), 3);
                 adjdWeight = correctWeight * Math.Max(scale + 1 - vscale, 0.25f);
                 Vector2 stabilized = Vector2.Lerp(stdir[0], dir[0], scale);
                 if (vel[0] >= 1 && vel[1] >= 1 && vel[0] < 150 * areaScale && stabilized.Length() > 1) {
@@ -457,7 +475,7 @@ namespace Saturn
             ringDir = iRingPos0 - iRingPos1;
             ringOutput += ringDir;
             if (ringDir.Length() > 0 || dist.Length() > rInner || accel[0] < -10 * areaScale || vel[0] > 10 * rInner) {
-                ringOutput = Vector2.Lerp(ringOutput, startOutput, FSmoothstep(ringDir.Length(), -0.01f, moddist));
+                ringOutput = Vector2.Lerp(ringOutput, startOutput, FSmoothstep(new Vector2(ringDir.X * xMod, ringDir.Y).Length(), -0.01f, 0.5f * moddist));
                 ringOutput = Vector2.Lerp(ringOutput, startOutput, FSmoothstep(accel[0], -10 * areaScale, -200 * areaScale));
                 moveOk = true;
             }
@@ -469,10 +487,12 @@ namespace Saturn
 
             if (stockWeight < 1f || moddist > 0f || aResponse > 0f) {
                 weight = stockWeight;
-                float dist = Vector2.Distance((aemaHold), ringOutput); 
+                Vector2 distVector = aemaHold - ringOutput;
+                distVector.X *= xMod;
+                float dist = distVector.Length();
                 if (wire) dist *= MathF.Pow(MathF.Pow(Math.Min(updateTime / expect, 1.5f), 1 / MathF.Pow(stockWeight, 1 + FSmoothstep(vel[0], 0, moddist))), 1 / (modPow)); // I HAVE NO IDEA HOW OR WHY THIS WORKS BUT THIS REDUCES MOST RACKET UNDER NORMAL SCENARIOS!!!!!!
                 float mod4 = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * stockWeight * MathF.Pow(FSmoothstep(dist, 5000 * aResponse * areaScale, (500 * aResponse * areaScale) - 1.0f) * FSmoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 30 * areaScale), modPow) * DotNorm(ddir[0], dir[0], 0);
-                float mod5 = FSmoothstep(dist + vel[0] - (Math.Min(2.0f, aResponse) * accel[0]), -0.01f, moddist);
+                float mod5 = FSmoothstep(dist + vel[0], -0.01f, moddist);
                 weight -= (mod4);
                 weight = Math.Clamp(weight, 0, 1);
                 weight *= MathF.Pow(mod5, modPow);
@@ -482,22 +502,22 @@ namespace Saturn
             aemaDir = aemaHold - lastAemaHold;
             lastAemaHold = aemaHold;
             aemaOutput += aemaDir;
-
+            
             if (dirSeparation > 0) {
-                aemaOutput = Vector2.Lerp(aemaOutput, ringOutput, dirSeparation * Math.Min(1, WireMultAdjust(MathF.Pow(weight, 3 - dirSeparation), expect, updateTime, wire)) * stockWeight);
+                aemaOutput = Vector2.Lerp(aemaOutput, ringOutput, dirSeparation * Math.Min(1, WireMultAdjust(weight, expect, updateTime, wire)) * stockWeight);
             }
         }
 
-        float WireMultAdjust(float a, float be, float br, bool w) => w ? a * (br / be) : a;
+        float WireMultAdjust(float a, float be, float br, bool w) => w ? a * Math.Clamp(br / be, 0, 1.5f) : a;
 
-        Vector2 WireMultAdjust(Vector2 a, float be, float br, bool w) => w ? a * (br / be) : a;
+        Vector2 WireMultAdjust(Vector2 a, float be, float br, bool w) => w ? a * Math.Clamp(br / be, 0, 1.5f): a;
 
         void Plot() {
         
             Console.Write("vx");
-            Console.WriteLine((dirOfOutput.X));
+            Console.WriteLine(((aemaOutput - ringOutput).X));
             Console.Write("vy");
-            Console.WriteLine((dirOfOutput.Y) * -1);
+            Console.WriteLine(((aemaOutput - ringOutput).Y) * -1);
             /*Console.Write("jx");
             Console.WriteLine(arc.X);
             Console.Write("jy");
@@ -642,8 +662,6 @@ namespace Saturn
             return v3 + t * vel + 0.5f * t * t * accel;
         }
 
-        Vector2 crPoint;
-
         const int HMAX = 4;
 
         Vector2 planestart, planeend, peak;
@@ -658,6 +676,7 @@ namespace Saturn
         Vector2[] stpos = new Vector2[HMAX];
         Vector2[] smpos = new Vector2[HMAX];
         Vector2[] prpos = new Vector2[HMAX];
+        Vector2[] adjDir = new Vector2[HMAX];
         float[] vel = new float[HMAX];
         float[] accel = new float[HMAX];
         float[] jerk = new float[HMAX];
@@ -707,6 +726,7 @@ namespace Saturn
         float correctWeight = 0.01f;
         const float msStandard = 3.302466f;
         Vector2 dacHold, lastdacHold, dacDir;
+        Vector2 emPos;
 
         HPETDeltaStopwatch runningStopwatch = new HPETDeltaStopwatch(true);
 
