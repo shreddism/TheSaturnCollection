@@ -1,5 +1,9 @@
 # The Saturn Collection
  
+A set of filters which is planned to grow to include the current general multifilter, as well as more niche optional plugins. For now only the main multifilters exist. This makes the naming convention look a little weird, but it's still correct and allows for additions.
+
+# Multifilter Settings
+
 Settings tooltips will appear on hovering over a setting's textbox. Here's a more proper breakdown of settings that may need them.
 
 If you're reading this without much context, you'll come across the term "velocity racket." I made this up just now to describe an effect of distance-weight antichatter. For an example, use "Kuuube's CHATTER EXTERMINATOR SMOOTH" on 50 strength. It might look like it's just decreasing pen resolution, but it's doing that as an intended side effect. This is velocity racket, where velocity becomes 0 for a report then non-0 for the next, making movement choppier when it doesn't exactly need to.
