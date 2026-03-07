@@ -8,7 +8,7 @@ Settings tooltips will appear on hovering over a setting's textbox. Here's a mor
 
 If you're reading this without much context, you'll come across the term "velocity racket." I made this up just now to describe an effect of distance-weight antichatter. For an example, use "Kuuube's CHATTER EXTERMINATOR SMOOTH" on 50 strength. It might look like it's just decreasing pen resolution, but it's doing that as an intended side effect. This is velocity racket, where velocity becomes 0 for a report then non-0 for the next, making movement choppier when it doesn't exactly need to.
 
-## Method-exclusive settings
+## Method-exclusive Settings
 
 ### Position Interpolation
 #### Prediction Ratio
@@ -33,7 +33,7 @@ This was considered useful because of behavior analysis.
 
 Decel Adjustment is more straightforward; it ensures no bad overshoot by making safe correction more aggressive on deceleration.
 
-## Interpolation-exclusive settings
+## Interpolation-exclusive Settings
 
 #### Wire
 In an interpolator, "ConsumeState" is called on tablet report, while "UpdateState" is called strictly at the set frequency. Wiring ConsumeState to UpdateState increases frequency by the tablet's report rate, but weirdly.
@@ -52,7 +52,7 @@ These tablets are known (source: me) to give funny unreliable reports on press/l
 Yes, Frequency. This section is carved out to point out to anyone unaware that on Windows, setting Frequency to anything but something that results in an integer-millisecond update interval (so 1000 or 500 in edge cases) will slam the CPU. Things work fine on Linux.
 Support for uber-high frequencies is the one thing I'm iffy on because I haven't even tried it yet, which is my fault since I put this together on Linux.
 
-## Other settings
+## Other Settings
 
 #### Reverse EMA
 Follow [these instructions](https://github.com/X9VoiD/VoiDPlugins/wiki/Reconstructor).
