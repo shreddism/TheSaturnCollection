@@ -158,7 +158,7 @@ namespace Saturn
         public float _areaScale;
         [Property("X Modifier"), DefaultPropertyValue(1f), ToolTip
         (
-            "Possible range: 0.01 - 100, default 1.0\n\n" +
+            "Possible range: 0.01 - 100.0, default 1.0\n\n" +
             "Acts as aspect ratio compensation.\n" +
             "If you want to make sure this is display-consistent,\n" +
             "divide your display area setting's aspect ratio (number in the middle)\n" +
