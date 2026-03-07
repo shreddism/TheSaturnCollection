@@ -419,28 +419,29 @@ namespace Saturn
 
         void AEMA() {
             float weight = 1;
-
+            float mod4 = 0;
             if (stockWeight < 1f || moddist > 0f || aResponse > 0f) {
                 weight = stockWeight;
                 Vector2 distVector = aemaHold - ringOutput;
                 distVector.X *= xMod;
                 float dist = distVector.Length();
                 if (wire) dist *= MathF.Pow(MathF.Pow(Math.Min(updateTime / expect, 1.5f), 1 / MathF.Pow(stockWeight, 1 + Smoothstep(vel[0], 0, moddist))), 1 / (modPow)); // I HAVE NO IDEA HOW OR WHY THIS WORKS BUT THIS REDUCES MOST RACKET UNDER NORMAL SCENARIOS!!!!!!
-                float mod4 = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * stockWeight * MathF.Pow(Smoothstep(dist, 5000 * aResponse * areaScale, (500 * aResponse * areaScale) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 30 * areaScale), modPow) * DotNorm(ddir[0], dir[0], 0);
+                mod4 = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * stockWeight * MathF.Pow(Smoothstep(dist, 5000 * aResponse * areaScale, (500 * aResponse * areaScale) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 30 * areaScale), modPow) * DotNorm(ddir[0], dir[0], 0);
                 float mod5 = Smoothstep(dist + vel[0], -0.01f, moddist);
-                weight -= (mod4);
-                weight = Math.Clamp(weight, 0, 1);
                 weight *= MathF.Pow(mod5, modPow);
             }
            
             aemaHold = Vector2.Lerp(aemaHold, ringOutput, weight);
             aemaDir = aemaHold - lastAemaHold;
             lastAemaHold = aemaHold;
-            aemaOutput += aemaDir;
-            
+            acOutput += aemaDir;
+
             if (dirSeparation > 0) {
-                aemaOutput = Vector2.Lerp(aemaOutput, ringOutput, dirSeparation * Math.Min(1, WireMultAdjust(weight, expect, updateTime, wire)) * stockWeight);
+                acOutput = Vector2.Lerp(acOutput, ringOutput, dirSeparation * Math.Min(1, WireMultAdjust(weight, expect, updateTime, wire)) * stockWeight);
             }
+            
+            weight = Math.Clamp(1 - mod4, 0, 1);
+            aemaOutput = Vector2.Lerp(aemaOutput, acOutput, Math.Min(1, WireMultAdjust(weight, expect, updateTime, wire)));
         }
 
         void Initialize() {
@@ -485,7 +486,7 @@ namespace Saturn
         
         Vector2 startOutput;
         Vector2 ringInputPos0, ringInputPos1, ringInputDir, iRingPos0, iRingPos1, ringDir, ringOutput;
-        Vector2 aemaHold, lastAemaHold, aemaDir, aemaOutput;
+        Vector2 aemaHold, lastAemaHold, aemaDir, acOutput, aemaOutput;
         Vector2 lastOutputPos, dirOfOutput;
         float reportTime;
         float adjdWeight, adjDacOuter;

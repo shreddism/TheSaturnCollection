@@ -289,13 +289,13 @@ namespace Saturn
 
         void AEMA() {
             float weight = 1;
-
+            float mod4 = 1;
             if (stockWeight < 1f || moddist > 0f || aResponse > 0f) {
                 weight = stockWeight;
                 Vector2 distVector = aemaHold - ringOutput;
                 distVector.X *= xMod;
                 float dist = distVector.Length();
-                float mod4 = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * stockWeight * MathF.Pow(Smoothstep(dist, 5000 * aResponse * areaScale, (500 * aResponse * areaScale) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 30 * areaScale), modPow) * DotNorm(ddir[0], dir[0], 0);
+                mod4 = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * stockWeight * MathF.Pow(Smoothstep(dist, 5000 * aResponse * areaScale, (500 * aResponse * areaScale) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 30 * areaScale), modPow) * DotNorm(ddir[0], dir[0], 0);
                 float mod5 = Smoothstep(dist + vel[0], -0.01f, moddist);
                 weight -= (mod4);
                 weight = Math.Clamp(weight, 0, 1);
@@ -305,11 +305,14 @@ namespace Saturn
             aemaHold = Vector2.Lerp(aemaHold, ringOutput, weight);
             aemaDir = aemaHold - lastAemaHold;
             lastAemaHold = aemaHold;
-            aemaOutput += aemaDir;
+            acOutput += aemaDir;
 
             if (dirSeparation > 0) {
-                aemaOutput = Vector2.Lerp(aemaOutput, ringOutput, dirSeparation * weight * stockWeight);
+                acOutput = Vector2.Lerp(acOutput, ringOutput, dirSeparation * weight * stockWeight);
             }
+
+            weight = Math.Clamp(1 - mod4, 0, 1);
+            aemaOutput = Vector2.Lerp(aemaOutput, acOutput, weight);
         }
 
         void Initialize() {
@@ -337,7 +340,7 @@ namespace Saturn
         
         Vector2 startOutput;
         Vector2 ringInputPos0, ringInputPos1, ringInputDir, iRingPos0, iRingPos1, ringDir, ringOutput;
-        Vector2 aemaHold, lastAemaHold, aemaDir, aemaOutput;
+        Vector2 aemaHold, lastAemaHold, aemaDir, acOutput, aemaOutput;
         float reportTime;
         float adjdWeight, adjDacOuter;
         float correctWeight;
