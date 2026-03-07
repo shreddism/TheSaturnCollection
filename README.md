@@ -1,4 +1,4 @@
-# The Saturn Collection
+# The Saturn Collection [![Total Download Count](https://img.shields.io/github/downloads/fridgesrunning/TheSaturnCollection/total.svg)](https://github.com/fridgesrunning/TheSaturnCollection/releases)
  
 A set of filters which is planned to grow to include the current general multifilter, as well as more niche optional plugins. For now only the main multifilters exist. This makes the naming convention look a little weird, but it's still correct and allows for additions.
 
