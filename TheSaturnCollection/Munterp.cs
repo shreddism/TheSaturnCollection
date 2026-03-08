@@ -113,7 +113,7 @@ namespace Saturn
         [Property("Additional Antichatter"), DefaultPropertyValue(100.0f), ToolTip
         (
             "Possible range: 0.0 - any, default 100.0\n\n" +
-            "Only takes effect if Adaptive EMA is enabled\n" +
+            "Fairly self-explanatory.\n" +
             "Keep Directional Separation up for basically zero added latency on normal movements."
         )]
         public float moddist { 
@@ -156,6 +156,7 @@ namespace Saturn
             get => _areaScale;
         }
         public float _areaScale;
+        
         [Property("X Modifier"), DefaultPropertyValue(1f), ToolTip
         (
             "Possible range: 0.01 - 100.0, default 1.0\n\n" +
