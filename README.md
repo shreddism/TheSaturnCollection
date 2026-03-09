@@ -2,7 +2,7 @@
  
 A set of filters which is planned to grow to include the current multifilter for all different types of users, as well as more niche optional plugins, like a velocity curve for artists or other general users who can contend with tablet drift for their use case. For now only the main multifilters exist. This makes the naming convention look a little weird, but it's still correct and allows for additions.
 
-Note that if you're reading this right now, I am updating the README right now, as in the current moment. It's in a decent state right now, but there will be more context and jargon definitions later. Formatting may be non-final.
+Formatting may be non-final.
 
 ## Things You Should Really Know
 
@@ -16,9 +16,9 @@ Names of plugins that are mentioned once or twice are put in quotations, but you
 
 "Non-interpolating" filters don't have a Frequency setting and just run at the tablet's report rate.
 
-"Pre-Transform" filters operate on raw tablet data, before the output mode, and work independently of the user's output mode. These are always applied before any "Post-Transform" filter regardless of console output because they apply before the transform/output mode, but among themselves their application order is based on the settings file/console output.
+"Pre-Transform" filters operate on raw tablet data, before the output mode, and work independently of the user's output mode. These are always applied before any "Post-Transform" filter regardless of console output because they apply before the transform/output mode, but among themselves their application order is based on the user settings file, accessible from File > Save settings as...
 
-"Post-Transform" filters are applied on whatever data the output mode outputs. In Absolute Mode this just means a different set of coordinates, but Relative Mode's transform just outputs velocity, so any cursor-modifying Post Transform filter either runs the risk of tablet drift or just doesn't work at all.
+"Post-Transform" filters are applied on whatever data the output mode outputs. In Absolute Mode this just means a different set of coordinates, but Relative Mode's transform just outputs velocity, so any cursor-modifying Post Transform filter either runs the risk of tablet drift or just doesn't work at all. The ordering situation is similar.
 
 ### Expected Performance Impact Of Filters
 
@@ -36,7 +36,7 @@ This means something like "Hover Distance Limiter" is completely fine, because i
 In fact, a lot of issues when taking the pen away from the tablet on certain tablets (Wacom PTK-x70) when using certain filters are fixed by using "Hover Distance Limiter" and leaving everything to default except checking the "Use Near Proximity Cutoff" setting.
 
 Other unrelated plugins like "Circular Area" are also completely fine, as it's just an extra transform,
-and since it's a "Post Transform" filter, it is ALWAYS ordered after every "Pre Transform" filter like this one regardless of what the console output says, so it won't mess with the data going into any "Pre Transform" filter,
+and since it's a post-transform filter, it is always ordered after every pre-transform filter like this one regardless of what the console output says, so it won't mess with the data going into any pre-transform filter,
 meaning this plugin is completely in the clear.
 
 A multifilter replaces the function of multiple filters without having to worry about filter order or timing consideration.
