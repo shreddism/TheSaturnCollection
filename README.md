@@ -2,22 +2,50 @@
  
 A set of filters which is planned to grow to include the current general multifilter, as well as more niche optional plugins. For now only the main multifilters exist. This makes the naming convention look a little weird, but it's still correct and allows for additions.
 
-# Multifilter Settings
+Note that if you're seeing this, then I am editing this README right now, as in the current moment. Formatting may be bad.
 
-Settings tooltips will appear on hovering over a setting's textbox. Here's a more proper breakdown of settings that may need them.
+## Things You Should Really Know
+
+### Using Other Filters
+
+In most cases, the multifilter should be the only non-transform cursor-modifying filter enabled!
+
+This means something like "Hover Distance Limiter" is completely fine, because it doesn't modify a cursor position.
+Other unrelated plugins like "Circular Area" are also completely fine, it's just an extra transform, and since it's a "Post Transform" filter, it is ALWAYS ordered after every "Pre Transform" filter like this one regardless of what the console output says, and it won't mess with the data going into any filter.
+
+A multifilter replaces the function of multiple filters without having to worry about filter order or timing consideration.
+This means that you want to enable ANYTHING along with a multifilter (including another multifilter), you will have to worry about filter order/timing consideration.
+It'll function just fine if everything is set well, but internal workings/timing consideration may be unreliable based on filter order, which is currently kind of unpredictable.
+Please consider attempting to be able to do more with less before resorting to overfiltering.
+
+### Terminology
 
 If you're reading this without much context, you'll come across the term "velocity racket." I made this up just now to describe an effect of distance-weight antichatter. For an example, use "Kuuube's CHATTER EXTERMINATOR SMOOTH" on 50 strength. It might look like it's just decreasing pen resolution, but it's doing that as an intended side effect. This is velocity racket, where velocity becomes 0 for a report then non-0 for the next, making movement choppier when it doesn't exactly need to.
+
+# Multifilter Settings
+
+Settings tooltips will appear on hovering over a setting's textbox. This further breakdown is assuming that you have read them.
 
 ## Method-exclusive Settings
 
 ### Position Interpolation
+
+People gloss over tooltips (Please hover over a settings textbox if confused!) all the time so this is a last ditch effort at catching those people.
+You're probably going to want to use this one, or the non-interpolated version if your tablet hz lines up so well with display hz that you can't tell a difference.
+
 #### Prediction Ratio
+
 Temporal Resampler puts the latest reverse-smoothed position into a Kalman filter, which spits out a point that it thinks will be next.
 Based on Prediction Ratio, the point used for interpolation will go from the latest reverse-smoothed position to the Kalman filter's point.
 At 0.0 this step is just foregone entirely. At 0.5 the point lands halfway between the latest reverse-smoothed position and the Kalman filter's point. At 1 only the Kalman filter's point is used.
 The point is fed into the 3 points to be used in interpolation.
 
 ### Velocity Interpolation
+
+Just as another heads-up, this filter gets inaccuracy scaling very strongly with tablet noise/lower report rate.
+I can say this functions with a PTK-x70, and perhaps a PTH-x60, but the concept of a velocity filter is novel, and this specific filter really trusts the tablet.
+For reliability's sake, you may want to use the Position Interpolation multifilter, as again, that uses Temporal Resampler's interpolation method.
+
 #### Velocity Trajectory Limiter 
 The trajectory estimator from Temporal Resampler is used, but on per-report change in position, or velocity.
 This ended up having the capability to extrapolate decently well if manual checks were put in place to reduce error. 
@@ -46,7 +74,9 @@ There are watches and modifiers in place to [mostly fix](https://github.com/shre
 Interpolation uses timing averages of inconsistent integer millisecond report times to generally know what to do. I thought it would be reassuring to add a hard override for those who know their tablet's average. Doesn't take effect at 0.
 
 #### "Wacom PTK-x70 Series Toggle"
-These tablets are known (source: me) to give funny unreliable reports on press/lift. This sticks a control rod in what could be a prediction disaster. In Velocity Interpolation, this also modifies correction to be better.
+This is said in the tooltip, but this may apply to people with PTH-x60 tablets as well, it's just not been tested/confirmed yet.
+These tablets are known (source: me) to give funny unreliable position reports on press/lift (which is a PRESSURE thing, not a TILT thing, to prevent misreads) that mess up all prediction.
+This sticks a control rod in what could be a prediction disaster. In Velocity Interpolation, this also modifies correction to be better IF your tablet is trustworthy.
 
 #### Frequency
 Yes, Frequency. This section is carved out to point out to anyone unaware that on Windows, setting Frequency to anything but something that results in an integer-millisecond update interval (so 1000 or 500 in edge cases) will slam the CPU. Things work fine on Linux.
