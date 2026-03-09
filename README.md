@@ -4,7 +4,7 @@ A set of filters which is planned to grow to include the current multifilter for
 
 Formatting may be non-final.
 
-## Things You Should Really Know
+## Things You Should Probably Know
 
 ### Terminology
 
@@ -30,7 +30,7 @@ You should expect any non-interpolating filter to add almost nothing to frame mi
 
 ### Using Other Filters
 
-In most cases, the multifilter should be the only non-transform cursor-modifying filter enabled!
+In most cases, the multifilter should be the only non-transform cursor-modifying filter enabled.
 
 This means something like "Hover Distance Limiter" is completely fine, because it doesn't modify a cursor position.
 In fact, a lot of issues when taking the pen away from the tablet on certain tablets (Wacom PTK-x70) when using certain filters are fixed by using "Hover Distance Limiter" and leaving everything to default except checking the "Use Near Proximity Cutoff" setting.
@@ -39,7 +39,7 @@ Other unrelated plugins like "Circular Area" are also completely fine, as it's j
 and since it's a post-transform filter, it is always ordered after every pre-transform filter like this one regardless of what the console output says, so it won't mess with the data going into any pre-transform filter,
 meaning this plugin is completely in the clear.
 
-A multifilter replaces the function of multiple filters without having to worry about filter order or timing consideration.
+A "multifilter" replaces the function of multiple filters without having to worry about filter order or timing consideration.
 This means that you want to enable ANYTHING along with a multifilter (including another multifilter), you will have to worry about filter order/timing consideration.
 It'll function just fine if everything is set well, but internal workings/timing consideration may be unreliable based on filter order, which is currently kind of unpredictable.
 Please consider attempting to be able to do more with less before resorting to overfiltering.
