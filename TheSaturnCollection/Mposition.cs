@@ -226,6 +226,7 @@ namespace Saturn
                     startOutput = smpos[0];
                     aemaHold = smpos[0];
                     ringOutput = smpos[0];
+                    acOutput = smpos[0];
                     iRingPos0 = smpos[0];
                     lastAemaHold = smpos[0];
                     lastOutputPos = smpos[0];
@@ -282,6 +283,7 @@ namespace Saturn
                     }
                     else { 
                         aemaOutput = pos[0];
+                        acOutput = pos[0];
                         startOutput = pos[0];
                         aemaHold = pos[0];
                         ringOutput = pos[0];
@@ -311,9 +313,10 @@ namespace Saturn
                 lastOutputPos = report.Position;
                 report.Pressure = pressure[0];   
 
-                if (!vec2IsFinite(report.Position + startOutput + ringOutput + aemaOutput)) {
+                if (!vec2IsFinite(report.Position + startOutput + ringOutput + aemaOutput + acOutput)) {
                     report.Position = pos[0];
                     aemaOutput = pos[0];
+                    acOutput = pos[0];
                     startOutput = pos[0];
                     ringOutput = pos[0];
                     iRingPos0 = pos[0];

@@ -156,7 +156,7 @@ namespace Saturn
             get => _areaScale;
         }
         public float _areaScale;
-        
+
         [Property("X Modifier"), DefaultPropertyValue(1f), ToolTip
         (
             "Possible range: 0.01 - 100.0, default 1.0\n\n" +
@@ -214,7 +214,7 @@ namespace Saturn
 
                 report.Position = aemaOutput;
 
-                if (!vec2IsFinite(report.Position + startOutput + ringOutput + aemaOutput)) {
+                if (!vec2IsFinite(report.Position + startOutput + ringOutput + aemaOutput + acOutput)) {
                     emergency = 5;
                 }
 
@@ -223,6 +223,7 @@ namespace Saturn
                     startOutput = pos[0];
                     aemaOutput = pos[0];
                     ringOutput = pos[0];
+                    acOutput = pos[0];
                     iRingPos0 = pos[0];
                     aemaHold = pos[0];
                     lastAemaHold = pos[0];
