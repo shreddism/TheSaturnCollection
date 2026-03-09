@@ -108,7 +108,7 @@ Support for uber-high frequencies is the one thing I'm iffy on because I haven't
 ## Other Settings
 
 #### Reverse EMA
-Follow [these instructions](https://github.com/X9VoiD/VoiDPlugins/wiki/Reconstructor).
+Follow [these instructions](https://github.com/X9VoiD/VoiDPlugins/wiki/Reconstructor#optimal-configuration).
 
 #### Directional Antichatter
 Should be explained in the tooltip. Mostly unaffected by aspect ratio compensation.
