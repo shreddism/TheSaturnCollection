@@ -5,7 +5,7 @@ A set of filters which is planned to grow to include the current multifilter for
 Formatting may be non-final.
 
 Important: When using Position Interpolation, setting Velocity 'Outer Range' above 0 while both Directional Antichatter settings are at 0 will cause tablet drift. This is a pretty nonsense configuration on its own, though.
-On any multifilter, movement smoothness issues may or may not arise from it being the other way around. This is untested.
+On any multifilter, movement smoothness issues may or may not arise from having Velocity 'Outer Range' at 0 while having any Directional Antichatter setting above 0. This is untested.
 You may want to set Directional Antichatter 'Outer Radius' to 0.01 if you are super duper paranoid from tablet drift being caused from floating point error.
 
 ## Things You Should Probably Know
