@@ -75,18 +75,6 @@ namespace Saturn
         }
         public float _dacOuter;
 
-        [Property("Velocity Outer Range"), DefaultPropertyValue(0.0f), ToolTip
-        (
-            "Possible range: 0.0 - any, default 0.0\n\n" +
-            "Will act the same as the above, but for magnitude of direction. Generally should be lower than the above setting.\n" +
-            "If you are unsure, keep at 0."
-        )]
-        public float vOuter { 
-            set => _vOuter = Math.Max(value, 0.0f);
-            get => _vOuter;
-        }
-        public float _vOuter;
-
         [Property("Stock EMA Weight"), DefaultPropertyValue(1.0f), ToolTip
         (
             "Possible range: 0.001 - 1.0, default 1.0\n\n" +
@@ -456,15 +444,11 @@ namespace Saturn
         }
 
         void DAC() {
-            if (dacInner + dacOuter + vOuter > 0f) {
+            if (dacInner + dacOuter > 0f) {
                 float vscale = Smoothstep(vel[0], 5, 10 + adjDacOuter);
                 float scale = MathF.Pow(Smoothstep(Math.Max(pointaccel[0], Vector2.Distance(stdir[0], dir[0])), Math.Max(0, vscale * dacInner) - 0.01f, (vscale * adjDacOuter)), 3);
                 adjdWeight = correctWeight * Math.Clamp(scale + 1 - vscale, 0.25f, 1f);
                 Vector2 stabilized = Vector2.Lerp(stdir[0], dir[0], scale); 
-                if (vel[0] >= 1 && vel[1] >= 1 && vel[0] < 150 * areaScale && stabilized.Length() > 1) {
-                    float ascale = Math.Max(Math.Abs(accel[0]), Math.Abs(vel[0] - stdir[0].Length()));
-                    stabilized = Vector2.Lerp(stabilized, stdir[0].Length() * Vector2.Normalize(stabilized), vscale * (1 - scale) * (Smoothstep(ascale, -0.01f, vOuter)));
-                }
                 InsertAtFirst(stdir, stabilized);
                 InsertAtFirst(a1stdir, (stdir[1] + stdir[0]) / 2);
             }
@@ -523,7 +507,7 @@ namespace Saturn
                 reportMsAvg = msOverride;
                 expectC = reportMsAvg / expect;
                 correctWeight = startCorrectWeight * expect * (msStandard / msOverride);
-                if (dacInner + dacOuter + vOuter == 0f) {
+                if (dacInner + dacOuter == 0f) {
                     adjdWeight = correctWeight;
                 }
             }
