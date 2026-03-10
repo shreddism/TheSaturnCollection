@@ -33,25 +33,27 @@ namespace Saturn
         }
         public float _reverseSmoothing;
 
-        [Property("Directional Antichatter 'Inner Radius'"), DefaultPropertyValue(0.0f), ToolTip
+        [Property("Directional Antichatter Inner Threshold"), DefaultPropertyValue(0.0f), ToolTip
         (
             "Possible range: 0.0 - any, default 0.0\n\n" +
-            "Works like Devocub antichatter, but placed on per-report direction. Units are in raw tablet data.\n" + 
+            "Works somewhat like Devocub Antichatter, but placed on per-report direction. Units are in raw tablet data.\n" + 
             "This shouldn't go very high, maybe 2 at the highest.\n" + 
-            "Internal thresholds are used to prevent this from messing things up horribly."
+            "Internal thresholds are used to prevent this from messing things up horribly.\n" +
+            "If you are unsure, keep at 0."
         )]
         public float dacInner { 
-            set => _dacInner = Math.Clamp(value, 0, _dacOuter);
+            set => _dacInner = Math.Clamp(value, 0.0f, _dacOuter);
             get => _dacInner;
         }
         public float _dacInner;
 
-        [Property("Directional Antichatter 'Outer Radius'"), DefaultPropertyValue(0.0f), ToolTip
+        [Property("Directional Antichatter Outer Threshold"), DefaultPropertyValue(0.0f), ToolTip
         (
             "Possible range: 0.0 - any, default 0.0\n\n" +
-            "Works like Devocub antichatter, but placed on per-report direction. Units are in raw tablet data.\n" + 
+            "Works somewhat like Devocub Antichatter, but placed on per-report direction. Units are in raw tablet data.\n" + 
             "This shouldn't go very high, maybe 5 at the highest.\n" + 
-            "Internal thresholds are used to prevent this from messing things up horribly."
+            "Internal thresholds are used to prevent this from messing things up horribly.\n" +
+            "If you are unsure, keep at 0."
         )]
         public float dacOuter { 
             set => _dacOuter = Math.Max(value, 0.0f);
@@ -59,10 +61,11 @@ namespace Saturn
         }
         public float _dacOuter;
 
-        [Property("Velocity 'Outer Range'"), DefaultPropertyValue(0.0f), ToolTip
+        [Property("Velocity Outer Range"), DefaultPropertyValue(0.0f), ToolTip
         (
             "Possible range: 0.0 - any, default 0.0\n\n" +
-            "Will act the same as the above, but for magnitude of direction."
+            "Will act the same as the above, but for magnitude of direction. Generally should be lower than the above setting.\n" +
+            "If you are unsure, keep at 0."
         )]
         public float vOuter { 
             set => _vOuter = Math.Max(value, 0.0f);
@@ -87,9 +90,12 @@ namespace Saturn
         [Property("Accel Response Aggressiveness"), DefaultPropertyValue(0.0f), ToolTip
         (
             "Possible range: 0.0 - any, default 0.0\n\n" +
-            "Useful values range between 0 and 2, but can go higher.\n" +
-            "Makes movement 'snappier' on sharp accel.\n" +
-            "Do not put above 0 if you hover on a PTK-470, as reporting becomes buggy.\n" +
+            "Some like using Devocub or Radial Follow for their more exaggerated snap effect that they bring.\n" +
+            "This adaptively brings that to sharp acceleration, so your cursor won't lock up on a small movement.\n" +
+            "Sensitivity is based on Area Scale and X modifier.\n" +
+            "Putting this too high, like above ~2, will make the cursor far less readable, so it isn't recommended.\n" +
+            "If hovering on a PTK-x70, this may be unreliable, as reporting becomes buggy on the hardware level.\n" +
+            "This could also apply to a PTH-x60 tablet, but this is untested.\n" +
             "General users - don't put above 0."
         )]
         public float aResponse { 
@@ -102,7 +108,7 @@ namespace Saturn
         (
             "Possible range: 0.0 - any, default 5.0\n\n" +
             "A full deadzone for movement. Unit is in raw tablet data.\n" +
-            "Already directionally separated with position transition based on the below option, so don't make this too high with the below option being too low."
+            "Already directionally separated with smooth position transition based on the below option, so don't make this too high with the below option being too low."
         )]
         public float rInner { 
             set => _rInner = Math.Max(value, 0.0f);
@@ -124,11 +130,11 @@ namespace Saturn
 
         [Property("Antichatter Power"), DefaultPropertyValue(5.0f), ToolTip
         (
-            "Possible range: 0.0 - any, default 5.0\n\n" +
+            "Possible range: 0.01 - any, default 5.0\n\n" +
             "Raises the antichatter's weight to this value."
         )]
         public float modPow { 
-            set => _modPow = Math.Max(value, 0.0f);
+            set => _modPow = Math.Max(value, 0.01f);
             get => _modPow;
         }
         public float _modPow;
@@ -148,7 +154,7 @@ namespace Saturn
         [Property("Area Scale"), DefaultPropertyValue(0.5f), ToolTip
         (
             "Possible range: 0.01 - 5.0, default 0.5\n\n" +
-            "Multiplies every area-subjective threshold.\n" +
+            "Multiplies every area-subjective threshold, mostly failsafes.\n" +
             "Increase if your area is large."
         )]
         public float areaScale { 
@@ -161,7 +167,7 @@ namespace Saturn
         (
             "Possible range: 0.01 - 100.0, default 1.0\n\n" +
             "Acts as aspect ratio compensation.\n" +
-            "If you want to make sure this is display-consistent,\n" +
+            "If you want to make sure behavior is display-consistent,\n" +
             "divide your display area setting's aspect ratio (number in the middle)\n" +
             "by your tablet area setting's aspect ratio.\n" +
             "Enter the result here."
@@ -184,32 +190,30 @@ namespace Saturn
                     emergency = 5;
                 }
                 reportTime = (float)reportStopwatch.Restart().TotalMilliseconds;
-                if (reportTime < 25) {
+                if (reportTime < 25f && reportTime > 0.01f) {
                     if (emergency > 0)
                     emergency--;
                 }
                 else {
                     emergency = 5;
                 }
-                moveOk = false;
                       
                 StatUpdate(report);
 
                 startOutput += stdir[0];
 
-                if (rInner > 0f) RF();
-                else {
-                    moveOk = true;
-                    ringOutput = startOutput;
-                }
-
-                if (moveOk && emergency == 0) {
+                if (emergency == 0) {
                 float cWeight = adjdWeight;
                 float dWeight = cWeight * Smoothstep(accel[0], -10 * areaScale, -200 * areaScale);
                 startOutput = Vector2.Lerp(startOutput, smpos[0], cWeight);
                 startOutput = Vector2.Lerp(startOutput, smpos[0], dWeight);
                 }
 
+                if (rInner > 0f) RF();
+                else {
+                    ringOutput = startOutput;
+                }
+                
                 AEMA();
 
                 report.Position = aemaOutput;
@@ -278,15 +282,13 @@ namespace Saturn
             ringInputDir = ringInputPos0 - ringInputPos1;
             Vector2 dist = startOutput - iRingPos0;
             iRingPos1 = iRingPos0;
-            iRingPos0 += Math.Max(0, dist.Length() - (rInner)) * Default(Vector2.Normalize(dist), Vector2.Zero);
+            iRingPos0 += Math.Max(0, (new Vector2(dist.X * xMod, dist.Y)).Length() - (rInner)) * Default(Vector2.Normalize(dist), Vector2.Zero);
             ringDir = iRingPos0 - iRingPos1;
             ringOutput += ringDir;
             if (ringDir.Length() > 0 || dist.Length() > rInner || accel[0] < -10 * areaScale || vel[0] > 10 * rInner) {
                 ringOutput = Vector2.Lerp(ringOutput, startOutput, Smoothstep(new Vector2(ringDir.X * xMod, ringDir.Y).Length(), -0.01f, 0.5f * moddist));
                 ringOutput = Vector2.Lerp(ringOutput, startOutput, Smoothstep(accel[0], -10 * areaScale, -200 * areaScale));
-                moveOk = true;
             }
-            else moveOk = false;
         }
 
         void AEMA() {
@@ -318,11 +320,11 @@ namespace Saturn
         }
 
         void Initialize() {
-            if (dacInner + dacOuter == 0f) {
-                adjdWeight = 0;
-            }
             adjDacOuter = Math.Max(dacOuter, dacInner + 0.01f);
             correctWeight = startCorrectWeight;
+            if (dacInner + dacOuter + vOuter == 0f) {
+                adjdWeight = correctWeight * 0.01f;
+            }
         }
 
         const int HMAX = 4;
@@ -346,7 +348,6 @@ namespace Saturn
         float reportTime;
         float adjdWeight, adjDacOuter;
         float correctWeight;
-        bool moveOk;
         bool init = false;
         int emergency;
         

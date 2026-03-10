@@ -133,7 +133,7 @@ Self explanatory. Runs at update, but we have a new position every update so it'
 distance-clamped antichatter instead of a Devocub-like distance-weight antichatter, but its drawbacks have mostly been stomped out, so it became something to be included in the next version.
 
 #### Accel Response Aggressiveness
-Some like using Devocub/Radial Follow for their more exaggerated snap effect that occurs as a side effect. This adaptively brings that to sharp acceleration. Setting this too high will bring cursor readability to near 0, so it isn't recommended. Sensitivity is based on Area Scale and X Modifier. Not flushed out very well, but that's being saved for a potential internal reordering in the next version.
+Some like using Devocub/Radial Follow for their more exaggerated snap effect that occurs as a side effect. This adaptively brings that to sharp acceleration, so your cursor won't lock up on a small movement. Setting this too high will bring cursor readability to near 0, so it isn't recommended. Sensitivity is based on Area Scale and X Modifier. Not flushed out very well, but that's being saved for a potential internal reordering in the next version.
 
 #### Inner Radius
 This is importantly unaffected by aspect ratio compensation because I wanted this setting to be an internal check for other behaviors. It probably shouldn't go higher than 10 because of this. This uses a Radial Follow-like calculation.
