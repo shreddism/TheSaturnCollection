@@ -4,16 +4,11 @@ A set of filters which is planned to grow to include the current multifilter for
 
 Formatting may be non-final.
 
-### Important: Issues Right Now!
+### Important
 
-When using Position Interpolation or Non-Interpolated, setting Velocity 'Outer Range' above 0 while both Directional Antichatter settings are at 0 will cause tablet drift. This is a pretty nonsense configuration on its own, though.
-You may want to set Directional Antichatter 'Outer Radius' to 0.01 in any case if you are super duper paranoid from tablet drift being caused from floating point error. (This will not happen, but in a literal sense it's true. I think.)
+In version 0.6.5, there are various issues with uncommon settings.
 
-On Position Interpolation, issues will arise from having Velocity 'Outer Range' at 0 while having any Directional Antichatter setting above 0.
-
-When using Velocity Interpolation, the simple correction is too weak on frequencies above 1000hz and too strong on frequencies below 1000hz.
-
-If you are reading this, then all of the above issues are fixed, but the update is awaiting being merged. If you really can't wait:
+If you are reading this, then these are fixed, but the update is awaiting being merged. If you really can't wait:
 
 Uninstall your current version first. Then, do this in Plugin Manager > File > Use alternate source...
 
