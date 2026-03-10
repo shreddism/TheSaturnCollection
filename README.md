@@ -13,8 +13,13 @@ On Position Interpolation, issues will arise from having Velocity 'Outer Range' 
 
 When using Velocity Interpolation, the simple correction is too weak on frequencies above 1000hz and too strong on frequencies below 1000hz.
 
-If you are reading this, then all of the above issues will hopefully be fixed by the end of the day in the repository build.
+If you are reading this, then all of the above issues are fixed, but the update is awaiting being merged. If you really can't wait:
 
+Uninstall your current version first. Then, do this in Plugin Manager > File > Use alternate source...
+
+![](/TheSaturnCollection/image/tscpatch1.png)
+
+Hit apply, and you'll find the version is now 0.7.0, the version with fixes.
 
 ## Things You Should Probably Know
 
