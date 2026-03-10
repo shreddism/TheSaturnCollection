@@ -6,9 +6,9 @@ Formatting may be non-final.
 
 ### Important
 
-In version 0.6.5, there are various issues with uncommon settings.
+In version 0.6.5, there are various issues with uncommon settings. To be safe, set Directional Antichatter 'Inner Radius' to 0, set Directional Antichatter 'Outer Radius' to 0.01, and set Velocity 'Outer Range' to 0. If using Velocity Interpolation, keep Frequency at 1000hz.
 
-If you are reading this, then these are fixed, but the update is awaiting being merged. If you really can't wait:
+If you are reading this, then issues with these settings are fixed and any settings will work, but the update is awaiting being merged. If you really can't wait:
 
 Uninstall your current version first. Then, do this in Plugin Manager > File > Use alternate source...
 
@@ -125,18 +125,15 @@ Follow [these instructions](https://github.com/X9VoiD/VoiDPlugins/wiki/Reconstru
 #### Directional Antichatter
 Should be explained in the tooltip. Mostly unaffected by aspect ratio compensation.
 
-#### Velocity Outer Range
-I'm not entirely sure if this meshes very cleanly with directional antichatter. It at least makes sure not to double-up on keeping velocity in the same place. Should be kept lower than outer radius. Mostly unaffected by aspect ratio compensation.
-
 #### Stock EMA Weight
 Self explanatory. Runs at update, but we have a new position every update so it's not an issue unlike Hawku/Devocub. At a super low weight with wire enabled, velocity racket occurs. This may be overhauled in the future in favor of fully using a Radial Follow-like
 distance-clamped antichatter instead of a Devocub-like distance-weight antichatter, but its drawbacks have mostly been stomped out, so it became something to be included in the next version.
 
 #### Accel Response Aggressiveness
-Some like using Devocub/Radial Follow for their more exaggerated snap effect that occurs as a side effect. This adaptively brings that to sharp acceleration, so your cursor won't lock up on a small movement. Setting this too high will bring cursor readability to near 0, so it isn't recommended. Sensitivity is based on Area Scale and X Modifier. Not flushed out very well, but that's being saved for a potential internal reordering in the next version.
+Explained in the tooltip. Not flushed out very well, but that's being saved for a potential internal reordering in the next version.
 
 #### Inner Radius
-This is importantly unaffected by aspect ratio compensation because I wanted this setting to be an internal check for other behaviors. It probably shouldn't go higher than 10 because of this. This uses a Radial Follow-like calculation.
+This is affected by aspect ratio compensation, but not in Velocity Interpolation, because I wanted this setting to be an internal check for other behaviors, and I want to gather opinions on whether or not that's a good idea. This uses a Radial Follow-like calculation.
 
 #### Additional Antichatter and Antichatter Power
 This is affected by aspect ratio compensation. Antichatter Power should not go too high because of potential velocity racket. This uses distance-weight calculation, similar to Devocub, which would incur moderate velocity racketing if not for fixes/changes.
