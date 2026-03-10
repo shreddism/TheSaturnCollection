@@ -56,7 +56,7 @@ namespace Saturn
             "If you are unsure, keep at 0."
         )]
         public float dacInner { 
-            set => _dacInner = Math.Clamp(value, 0.0f, _dacOuter);
+            set => _dacInner = Math.Max(value, 0.0f);
             get => _dacInner;
         }
         public float _dacInner;
@@ -457,7 +457,7 @@ namespace Saturn
 
         void DAC() {
             if (dacInner + dacOuter + vOuter > 0f) {
-                float vscale = Smoothstep(vel[0], 5, 10 + dacOuter);
+                float vscale = Smoothstep(vel[0], 5, 10 + adjDacOuter);
                 float scale = MathF.Pow(Smoothstep(Math.Max(pointaccel[0], Vector2.Distance(stdir[0], dir[0])), Math.Max(0, vscale * dacInner) - 0.01f, (vscale * adjDacOuter)), 3);
                 adjdWeight = correctWeight * Math.Clamp(scale + 1 - vscale, 0.25f, 1f);
                 Vector2 stabilized = Vector2.Lerp(stdir[0], dir[0], scale); 
@@ -482,7 +482,7 @@ namespace Saturn
             iRingPos1 = iRingPos0;
             iRingPos0 += Math.Max(0, dist.Length() - (rInner)) * Default(Vector2.Normalize(dist), Vector2.Zero);
             ringDir = iRingPos0 - iRingPos1;
-            ringOutput += new Vector2(ringDir.X / xMod, ringDir.Y);
+            ringOutput += ringDir;
             if (ringDir.Length() > 0 || dist.Length() > rInner || accel[0] < -10 * areaScale || vel[0] > 10 * rInner) {
                 ringOutput = Vector2.Lerp(ringOutput, startOutput, Smoothstep(new Vector2(ringDir.X * xMod, ringDir.Y).Length(), -0.01f, 0.5f * moddist));
                 ringOutput = Vector2.Lerp(ringOutput, startOutput, Smoothstep(accel[0], -10 * areaScale, -200 * areaScale));
@@ -524,7 +524,7 @@ namespace Saturn
                 expectC = reportMsAvg / expect;
                 correctWeight = startCorrectWeight * expect * (msStandard / msOverride);
                 if (dacInner + dacOuter + vOuter == 0f) {
-                    adjdWeight = correctWeight * 0.01f;
+                    adjdWeight = correctWeight;
                 }
             }
             adjDacOuter = Math.Max(dacOuter, dacInner + 0.01f);
