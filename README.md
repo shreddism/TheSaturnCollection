@@ -8,7 +8,7 @@ Formatting may be non-final.
 
 In version 0.6.5, there are various issues with uncommon settings. To be safe, set Directional Antichatter 'Inner Radius' to 0, set Directional Antichatter 'Outer Radius' to 0.01, and set Velocity 'Outer Range' to 0. If using Velocity Interpolation, keep Frequency at 1000hz.
 
-If you are reading this, then issues with these settings are fixed and any settings will work, but the update is awaiting being merged. If you really can't wait:
+If you are reading this and you are still on version 0.6.5, then issues with these settings are fixed and any settings will work, but the update is awaiting being merged. If this is the case and you don't want to wait:
 
 Uninstall your current version first. Then, do this in Plugin Manager > File > Use alternate source...
 
