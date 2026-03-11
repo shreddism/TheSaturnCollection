@@ -4,9 +4,11 @@ A set of filters which is planned to grow to include the current multifilter for
 
 Formatting may be non-final.
 
-### Most Recent Update
+### Most Recent Update + Important Info
 
 0.7.0 - Slight behavior changes, edge case fixes, removed a nonfunctional setting.
+
+It should be known that due to an oversight, setting stock weight to 1, accel response aggressiveness to 0, AND *additional antichatter* to 0 (all three exact) just makes the filter not work. There's no good reason in existence to do this, though, so a fix will wait until the next update, which is an overhaul and will take some time.
 
 ## Things You Should Probably Know
 
