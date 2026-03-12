@@ -4,17 +4,17 @@ A set of filters which is planned to grow to include the current multifilter for
 
 Formatting may be non-final.
 
-### Most Recent Update + Important Info
+### Most Recent Update + Known Issues + Fix Status
 
 0.7.0 - Slight behavior changes, edge case fixes, removed a nonfunctional setting.
 
-There's an issue with aspect ratio compensation that makes the cursor act odd when X Modifier is not set to 1. If used normally, as in being above 1, there's not much to be actively worried about; it's just slight underaim and latency. It shouldn't be set below 1 in the current version.
+There's an issue with aspect ratio compensation that makes the cursor act odd when X Modifier is not set to 1. If used normally, as in being above 1, there's not much to be actively worried about; it's just slight underaim and latency. It shouldn't be set below 1 in 0.7.0.
 
 Both interpolation methods have a barely noticeable velocity racket when Wire is enabled because of a time compensation error.
 
 Due to an oversight, setting stock weight to 1, accel response aggressiveness to 0, AND *additional antichatter* to 0 (all three exact) just makes the filter not work. There's no good reason in existence to do this, though.
 
-If you are reading this, fixes for all above issues are currently in progress and should be out shortly.
+If you are reading this on 0.7.0, fixes for all above issues are currently in progress and should be out shortly. If you are reading this on 0.8.0, the issues have been fixed.
 
 ## Things You Should Probably Know
 
