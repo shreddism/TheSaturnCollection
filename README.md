@@ -58,6 +58,8 @@ This means that you want to enable ANYTHING along with a multifilter (including 
 It'll function just fine if everything is set well, but internal workings/timing consideration may be unreliable based on filter order, which is currently kind of unpredictable.
 Please consider attempting to be able to do more with less before resorting to overfiltering.
 
+Some combinations currently make perfect sense. If the version is 0.8.0 and you are on absolute mode (this does not work on relative), you can massively reduce Additional Antichatter and use Radial Follow (Screen Space) with only an outer radius to preference.
+
 # Multifilter Settings
 
 Settings tooltips will appear on hovering over a setting's textbox. This further breakdown is assuming that you have read them.
@@ -117,7 +119,7 @@ This sticks a control rod in what could be a prediction disaster. In Velocity In
 #### Frequency
 Yes, Frequency. This section is carved out to point out to anyone unaware that on Windows, setting Frequency to anything but something that results in an integer-millisecond update interval (so 1000 or 500 in edge cases) will slam the CPU.
 If your CPU can handle it, this will be fine, but system timing when it comes to the "Wire" setting may be inaccurate (untested). All frequencies work fine on Linux, so you can just set it to 1x or 2x your display refresh rate without worry.
-Support for uber-high frequencies is the one thing I'm iffy on because I haven't even tried it yet, which is my fault since I put this together on Linux.
+Support for uber-high frequencies should be decent.
 
 ## Other Settings
 
@@ -129,7 +131,7 @@ Should be explained in the tooltip.
 
 #### Stock EMA Weight
 Self explanatory. Runs at update, but we have a new position every update so it's not an issue unlike Hawku/Devocub. At a super low weight with wire enabled, velocity racket occurs. This may be overhauled in the future in favor of fully using a Radial Follow-like
-distance-clamped antichatter instead of a Devocub-like distance-weight antichatter, but its drawbacks have mostly been stomped out, so it became something to be included in the next version.
+distance-clamped antichatter instead of a Devocub-like distance-weight antichatter, but its drawbacks have mostly been stomped out, so it became something to be included in an overhaul.
 
 #### Accel Response Aggressiveness
 Explained in the tooltip. Not flushed out very well, but that's being saved for a potential internal reordering in the next version.
@@ -138,7 +140,7 @@ Explained in the tooltip. Not flushed out very well, but that's being saved for 
 Self-explanatory. Always directionally separated. This uses a Radial Follow-like calculation.
 
 #### Additional Antichatter and Antichatter Power
-This likely shouldn't go much higher than the default in favor of increasing Inner Radius instead.
+This likely shouldn't go much higher than the default in favor of increasing Inner Radius instead. If you drag, this can be reduced greatly.
 Antichatter Power should not go too high because of potential velocity racket. This uses distance-weight calculation, similar to Devocub, which would incur moderate velocity racketing if not for fixes/changes.
 
 #### Directional Separation
@@ -152,7 +154,7 @@ Self explanatory. Full area PTK-470 can work with 1. Full area CTL-472 can work 
 Multiplies the X values that the internals of the filter work on and divides outputs by the value. Makes the entire filter screen-space (if done right)! Example: 2560x1440 display (16/9) and 90x60 area (3/2) makes (16/9) / (3/2), which appears to be 1.185185 repeating. This value would be used.
 
 # Pixel Grid
-The effect is self-explanatory, but this is a Post-Transform filter, so it does not work on relative mode, and it should be made sure that this is the last Post-Transform filter.
+The effect is self-explanatory, but this is a Post-Transform filter, so it does not work on relative mode, and it should be made sure that this is the last Post-Transform filter, going after Circular Area and Radial Follow (Screen Space).
 
 To change ordering or if you are unsure:
 
