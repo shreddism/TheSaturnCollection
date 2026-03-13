@@ -163,4 +163,4 @@ To change ordering or if you are unsure:
 
  ![](TheSaturnCollection/image/fixedsettingsfile.png)
 
-- Save the file, then go to File > Load settings > load the file, save and apply.
+- Save the file, then go to File > Load settings > load the file, see if it works, then save.
