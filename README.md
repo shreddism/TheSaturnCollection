@@ -8,7 +8,7 @@ Formatting may be non-final.
 
 0.7.0 - Slight behavior changes, edge case fixes, removed a nonfunctional setting.
 
-Incoming update - 0.8.0 - Fixes to all below issues, multiple behavior improvements in various areas.
+Incoming update - 0.8.1 - Fixes to all below issues, multiple behavior improvements in various areas.
 
 There's an issue with aspect ratio compensation that makes the cursor act odd when X Modifier is not set to 1. If used normally, as in being above 1, there's not much to be actively worried about; it's just slight underaim and latency. It shouldn't be set below 1 in 0.7.0.
 
@@ -16,7 +16,7 @@ Both interpolation methods have a barely noticeable velocity racket when Wire is
 
 Due to an oversight, setting stock weight to 1, accel response aggressiveness to 0, AND *additional antichatter* to 0 (all three exact) just makes the filter not work. There's no good reason in existence to do this, though.
 
-If you are reading this on 0.7.0, fixes for all above issues are awaiting being merged. If you are reading this on 0.8.0, the issues have been fixed.
+If you are reading this on 0.7.0, fixes for all above issues are in progress. If you are reading this on 0.8.0+, the issues have been fixed.
 
 ## Things You Should Probably Know
 
