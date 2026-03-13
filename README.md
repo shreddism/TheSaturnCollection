@@ -8,13 +8,15 @@ Formatting may be non-final.
 
 0.7.0 - Slight behavior changes, edge case fixes, removed a nonfunctional setting.
 
+Incoming update - 0.8.0 - Fixes to all below issues, multiple behavior improvements in various areas.
+
 There's an issue with aspect ratio compensation that makes the cursor act odd when X Modifier is not set to 1. If used normally, as in being above 1, there's not much to be actively worried about; it's just slight underaim and latency. It shouldn't be set below 1 in 0.7.0.
 
 Both interpolation methods have a barely noticeable velocity racket when Wire is enabled because of a time compensation error.
 
 Due to an oversight, setting stock weight to 1, accel response aggressiveness to 0, AND *additional antichatter* to 0 (all three exact) just makes the filter not work. There's no good reason in existence to do this, though.
 
-If you are reading this on 0.7.0, fixes for all above issues are currently in progress and should be out shortly. If you are reading this on 0.8.0, the issues have been fixed.
+If you are reading this on 0.7.0, fixes for all above issues are awaiting being merged. If you are reading this on 0.8.0, the issues have been fixed.
 
 ## Things You Should Probably Know
 
@@ -123,7 +125,7 @@ Support for uber-high frequencies is the one thing I'm iffy on because I haven't
 Follow [these instructions](https://github.com/X9VoiD/VoiDPlugins/wiki/Reconstructor#optimal-configuration).
 
 #### Directional Antichatter
-Should be explained in the tooltip. Mostly unaffected by aspect ratio compensation.
+Should be explained in the tooltip.
 
 #### Stock EMA Weight
 Self explanatory. Runs at update, but we have a new position every update so it's not an issue unlike Hawku/Devocub. At a super low weight with wire enabled, velocity racket occurs. This may be overhauled in the future in favor of fully using a Radial Follow-like
@@ -133,20 +135,21 @@ distance-clamped antichatter instead of a Devocub-like distance-weight antichatt
 Explained in the tooltip. Not flushed out very well, but that's being saved for a potential internal reordering in the next version.
 
 #### Inner Radius
-This is affected by aspect ratio compensation, but not in Velocity Interpolation, because I wanted this setting to be an internal check for other behaviors, and I want to gather opinions on whether or not that's a good idea. This uses a Radial Follow-like calculation.
+Self-explanatory. Always directionally separated. This uses a Radial Follow-like calculation.
 
 #### Additional Antichatter and Antichatter Power
-This is affected by aspect ratio compensation. Antichatter Power should not go too high because of potential velocity racket. This uses distance-weight calculation, similar to Devocub, which would incur moderate velocity racketing if not for fixes/changes.
+This likely shouldn't go much higher than the default in favor of increasing Inner Radius instead.
+Antichatter Power should not go too high because of potential velocity racket. This uses distance-weight calculation, similar to Devocub, which would incur moderate velocity racketing if not for fixes/changes.
 
 #### Directional Separation
-Antichatter uses a little trick where the output position is separated from calculation, allowing underaim to be completely taken out. This controls how much it applies to Additional Antichatter.
+Antichatter uses a little trick where the output position is separated from calculation, allowing underaim to be completely taken out. This controls how aggressively it applies to Additional Antichatter.
 This should probably always be 1 for multiple reasons, an important one being that it mostly fixes the awful "hook" effect on perpendicular movements.
 
 #### Area Scale
 Self explanatory. Full area PTK-470 can work with 1. Full area CTL-472 can work with 0.5.
 
 #### X Modifier
-Multiplies X values in different Vector2s to be used in thresholds to mantain visuals on non-forced aspect ratios. This means vertical area holds.
+Multiplies the X values that the internals of the filter work on and divides outputs by the value. Makes the entire filter screen-space (if done right)! Example: 2560x1440 display (16/9) and 90x60 area (3/2) makes (16/9) / (3/2), which appears to be 1.185185 repeating. This value would be used.
 
 # Pixel Grid
 The effect is self-explanatory, but this is a Post-Transform filter, so it does not work on relative mode, and it should be made sure that this is the last Post-Transform filter.
