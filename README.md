@@ -147,3 +147,20 @@ Self explanatory. Full area PTK-470 can work with 1. Full area CTL-472 can work 
 
 #### X Modifier
 Multiplies X values in different Vector2s to be used in thresholds to mantain visuals on non-forced aspect ratios. This means vertical area holds.
+
+# Pixel Grid
+The effect is self-explanatory, but this is a Post-Transform filter, so it does not work on relative mode, and it should be made sure that this is the last Post-Transform filter.
+
+To change ordering or if you are unsure:
+
+- Go to File > Save settings as... > Save the file
+
+- Open the file. If you cannot, install/use Visual Studio Code.
+
+- Find the brackets enclosing Saturn.PixelGrid and its settings, and cut+paste them to the bottom of the Filters section. Fix the commas.
+
+- It should now look like this.
+
+ ![](TheSaturnCollection/image/settingsfile.png)
+
+- Save the file, then go to File > Load settings > load the file, save and apply.
