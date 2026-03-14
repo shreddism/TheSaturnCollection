@@ -22,7 +22,9 @@ namespace Saturn
             "Important: This uses an unusual form of interpolation that makes it easier to add experimental pet project velocity features.\n" +
             "This works just fine on a Wacom PTK-470, but you may prefer the position interpolated multifilter better,\n" +
             "as it just uses Temporal Resampler's interpolation and prediction.\n\n" +
+
             "Possible range: 2.0 - 3.0, default 3.0\n\n" +
+
             "2 = zero prediction, only interpolation, 3 = only prediction under sufficient situations.\n" +
             "If on a Intuos Pro (200hz or 300hz), put this to 3.\n" +
             "At least try positional interpolation otherwise."
@@ -36,13 +38,14 @@ namespace Saturn
         [Property("Reverse EMA"), DefaultPropertyValue(1.0f), ToolTip
         (
             "Possible range: 0.001 - 1.0, default 1.0\n\n" +
+
             "Equivalent to what is seen in Reconstructor and Temporal Resampler.\n" +
             "ONLY touch this IF your tablet has hardware smoothing!\n" +
             "Follow the instructions from the wiki."
         )]
         public float reverseSmoothing
         {
-            set => _reverseSmoothing = Math.Clamp(value, 0.001f, 1);
+            set => _reverseSmoothing = Math.Clamp(value, 0.001f, 1.0f);
             get => _reverseSmoothing;
         }
         public float _reverseSmoothing;
@@ -50,6 +53,7 @@ namespace Saturn
         [Property("Directional Antichatter Inner Threshold"), DefaultPropertyValue(0.0f), ToolTip
         (
             "Possible range: 0.0 - any, default 0.0\n\n" +
+
             "Works somewhat like Devocub Antichatter, but placed on per-report direction. Units are in raw tablet data.\n" + 
             "This shouldn't go very high, maybe 2 at the highest.\n" + 
             "Internal thresholds are used to prevent this from messing things up horribly.\n" +
@@ -64,6 +68,7 @@ namespace Saturn
         [Property("Directional Antichatter Outer Threshold"), DefaultPropertyValue(0.0f), ToolTip
         (
             "Possible range: 0.0 - any, default 0.0\n\n" +
+
             "Works somewhat like Devocub Antichatter, but placed on per-report direction. Units are in raw tablet data.\n" + 
             "This shouldn't go very high, maybe 5 at the highest.\n" + 
             "Internal thresholds are used to prevent this from messing things up horribly.\n" +
@@ -78,6 +83,7 @@ namespace Saturn
         [Property("Stock EMA Weight"), DefaultPropertyValue(1.0f), ToolTip
         (
             "Possible range: 0.001 - 1.0, default 1.0\n\n" +
+
             "EMA weight, but it can change based on the current situation and internal thresholds.\n" +
             "This should hold for any reasonable area.\n" +
             "Setting this too low may cause racket if wire is enabled. If you want this low, you won't miss wire.\n" +
@@ -92,6 +98,7 @@ namespace Saturn
         [Property("Accel Response Aggressiveness"), DefaultPropertyValue(0.0f), ToolTip
         (
             "Possible range: 0.0 - any, default 0.0\n\n" +
+
             "Some like using Devocub or Radial Follow for their more exaggerated snap effect that they bring.\n" +
             "This adaptively brings that to sharp acceleration, so your cursor won't lock up on a small movement.\n" +
             "Sensitivity is based on Area Scale and X modifier.\n" +
@@ -106,11 +113,12 @@ namespace Saturn
         }
         public float _aResponse;
 
-        [Property("Inner Radius"), DefaultPropertyValue(5.0f), ToolTip
+        [Property("Inner Radius"), DefaultPropertyValue(20.0f), ToolTip
         (
-            "Possible range: 0.0 - any, default 5.0\n\n" +
+            "Possible range: 0.0 - any, default 20.0\n\n" +
+
             "A full deadzone for movement. Unit is in raw tablet data.\n" +
-            "Already directionally separated with smooth position transition based on the below option, so don't make this too high with the below option being too low."
+            "Directionally separated with smooth position transition to raw based on itself."
         )]
         public float rInner { 
             set => _rInner = Math.Max(value, 0.0f);
@@ -118,11 +126,13 @@ namespace Saturn
         }
         public float _rInner;
 
-        [Property("Additional Antichatter"), DefaultPropertyValue(100.0f), ToolTip
+        [Property("Smoothed Antichatter"), DefaultPropertyValue(50.0f), ToolTip
         (
-            "Possible range: 0.0 - any, default 100.0\n\n" +
-            "Fairly self-explanatory.\n" +
-            "Keep Directional Separation up for basically zero added latency on normal movements."
+            "Possible range: 0.0 - any, default 50.0\n\n" +
+            
+            "Fairly self-explanatory. This shouldn't go too high.\n" +
+            "If you drag, consider setting this to 0 and just using an inner radius.\n" +
+            "Directional Separation controls behavior."
         )]
         public float moddist { 
             set => _moddist = Math.Max(value, 0.0f);
@@ -130,10 +140,11 @@ namespace Saturn
         }
         public float _moddist;
 
-        [Property("Antichatter Power"), DefaultPropertyValue(5.0f), ToolTip
+        [Property("Distance Smoothing Power"), DefaultPropertyValue(5.0f), ToolTip
         (
             "Possible range: 0.01 - any, default 5.0\n\n" +
-            "Raises the antichatter's weight to this value."
+
+            "Raises the weight of the above setting to this value. This shouldn't go too high."
         )]
         public float modPow { 
             set => _modPow = Math.Max(value, 0.01f);
@@ -144,21 +155,20 @@ namespace Saturn
         [Property("Directional Separation"), DefaultPropertyValue(1.0f), ToolTip
         (
             "Possible range: 0.0 - 1.0, default 1.0\n\n" +
-            "Controls aggressiveness of antichatter's directional separation.\n" +
-            "Setting at 0 will create added latency."
+
+            "From 0.0 to 1.0, takes Smoothed Antichatter from extra smoothing to an extra transition to raw."
         )]
         public float dirSeparation {
-            set => _dirSeparation = Math.Clamp(value, 0, 1.0f);
+            set => _dirSeparation = Math.Clamp(value, 0.0f, 1.0f);
             get => _dirSeparation;
         }
         public float _dirSeparation;
 
-        [Property("Wire"), DefaultPropertyValue(true), ToolTip
+        [BooleanProperty("Wire", ""), DefaultPropertyValue(true), ToolTip
         (
             "Equivalent to 'extraFrames' from Temporal Resampler.\n" +
             "You should probably leave this enabled unless your specific situation requires otherwise.\n" +
-            "Some people have reported this breaking things in the past, but for them it has been fixed.\n" +
-            "Some fixes prevent antichatter from racketing under normal scenarios when this is enabled,\n" +
+            "Some fixes prevent most distance smoothing from racketing under normal scenarios when this is enabled,\n" +
             "which are not present in any other filter. This changes behavior but keeps it working well."
         )]
         public bool wire { set; get; }
@@ -177,8 +187,9 @@ namespace Saturn
         [Property("Area Scale"), DefaultPropertyValue(0.5f), ToolTip
         (
             "Possible range: 0.01 - 5.0, default 0.5\n\n" +
+
             "Multiplies every area-subjective threshold, mostly failsafes.\n" +
-            "Increase if your area is large."
+            "If you are unsure, see the wiki instructions."
         )]
         public float areaScale { 
             set => _areaScale = Math.Clamp(value, 0.01f, 5f);
@@ -186,14 +197,13 @@ namespace Saturn
         }
         public float _areaScale;
 
-        [Property("X Modifier"), DefaultPropertyValue(1f), ToolTip
+        [Property("X Modifier"), DefaultPropertyValue(1.0f), ToolTip
         (
             "Possible range: 0.01 - 100.0, default 1.0\n\n" +
+
             "Acts as aspect ratio compensation.\n" +
-            "If you want to make sure behavior is display-consistent,\n" +
-            "divide your display area setting's aspect ratio (number in the middle)\n" +
-            "by your tablet area setting's aspect ratio.\n" +
-            "Enter the result here."
+            "Divide display area ratio by tablet area ratio, then use that value.\n" +
+            "If you are unsure, see the wiki instructions."
         )]
         public float xMod { 
             set => _xMod = Math.Clamp(value, 0.01f, 100f);
@@ -201,7 +211,7 @@ namespace Saturn
         }
         public float _xMod;
 
-        [Property("Wacom PTK-x70 Series Toggle"), DefaultPropertyValue(true), ToolTip
+        [BooleanProperty("Wacom PTK-x70 Series Toggle", ""), DefaultPropertyValue(true), ToolTip
         (
             "Enables behavioral tweaks that improve the experience on a Wacom PTK-x70 tablet, like not bugging out on press/lift.\n" +
             "May be applicable on a PTH-x60 tablet, but this is untested."
@@ -211,6 +221,7 @@ namespace Saturn
         [Property("Correction - Accel Adjustment"), DefaultPropertyValue(0.0f), ToolTip
         (
             "Possible range: 0.0 - 1.0, default 0.0\n\n" +
+
             "May modify feel slightly on sharp acceleration.\n" +
             "If you are unsure, keep at 0."
         )]
@@ -223,6 +234,7 @@ namespace Saturn
         [Property("Correction - Decel Adjustment"), DefaultPropertyValue(5.0f), ToolTip
         (
             "Possible range: 0.0 - 1.0, default 5.0\n\n" +
+
             "Higher = less chance of bad overshoot on deceleration.\n" +
             "If you are unsure, keep at 5."
         )]
@@ -489,8 +501,8 @@ namespace Saturn
             acOutput += aemaDir;
 
             if (dirSeparation > 0) {
-                acOutput = Vector2.Lerp(acOutput, ringOutput, dirSeparation * Math.Min(1, WireMultAdjust(weight, expect, updateTime, wire)) * stockWeight);
-                acOutput = Vector2.Lerp(acOutput, ringOutput, stockWeight * dscalebonus);
+                acOutput = Vector2.Lerp(acOutput, Vector2.Lerp(aemaHold, ringOutput, dirSeparation), Math.Min(1, WireMultAdjust(weight, expect, updateTime, wire)) * stockWeight);
+                acOutput = Vector2.Lerp(acOutput, Vector2.Lerp(aemaHold, ringOutput, dirSeparation), stockWeight * dscalebonus);
             }
 
             if (aResponse > 0f) {

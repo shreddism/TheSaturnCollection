@@ -10,7 +10,7 @@ namespace Saturn {
 
         public static float Default(float a, float b) => float.IsFinite(a) ? a : b;
         public static float WireMultAdjust(float a, float be, float br, bool w) => w ? a * Math.Clamp(br / be, 0, 1.5f) : a;
-        public static float WirePowAdjust(float a, float be, float br, bool w) => w ? MathF.Pow(a, Math.Clamp(be / br, 0, 0.66f)) : a;
+        public static float WirePowAdjust(float a, float be, float br, bool w) => w ? MathF.Pow(a, Math.Max(be / br, 0.66f)) : a;
         public static float DotNorm(Vector2 a, Vector2 b) => Vector2.Dot(Vector2.Normalize(a), Vector2.Normalize(b));
         public static float DotNorm(Vector2 a, Vector2 b, float x) => (a != Vector2.Zero && b != Vector2.Zero) ? Vector2.Dot(Vector2.Normalize(a), Vector2.Normalize(b)) : x;
         
