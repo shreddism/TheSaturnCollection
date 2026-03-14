@@ -477,44 +477,45 @@ namespace Saturn
             ringDir = iRingPos0 - iRingPos1;
             ringOutput += ringDir;
             if (ringDir.Length() > 0 || dist.Length() > rInner || accel[0] < -10 * areaScale || vel[0] > 10 * rInner) {
-                ringOutput = Vector2.Lerp(ringOutput, startOutput, Math.Min(1, WireMultAdjust(Smoothstep(ringDir.Length(), -0.01f, rInner), expect, updateTime, wire)));
-                ringOutput = Vector2.Lerp(ringOutput, startOutput, Math.Min(1, WireMultAdjust(Smoothstep(accel[0], -10 * areaScale, -200 * areaScale), expect, updateTime, wire)));
+                ringOutput = Vector2.Lerp(ringOutput, startOutput, WireWeightAdjust(Smoothstep(ringDir.Length(), -0.01f, rInner), expect, updateTime, wire));
+                ringOutput = Vector2.Lerp(ringOutput, startOutput, WireWeightAdjust(Smoothstep(accel[0], -10 * areaScale, -150 * areaScale), expect, updateTime, wire));
                 moveOk = true;
             }
             else moveOk = false;
         }
 
         void AEMA() {
-            float weight = stockWeight;
-            float mod4 = 0;
-
-            if (moddist > 0f) {
-                float dist = Vector2.Distance(aemaHold, ringOutput);
-                if (wire) dist *= MathF.Pow(MathF.Pow(Math.Min(updateTime / expect, 1.5f), 1 / MathF.Pow(stockWeight, 1 + Smoothstep(vel[0], -0.01f, moddist))), 1 / (modPow)); // I HAVE NO IDEA HOW OR WHY THIS WORKS BUT THIS REDUCES MOST RACKET UNDER NORMAL SCENARIOS!!!!!!
-                float mod5 = Smoothstep(dist + vel[0] - accel[0], -0.01f, moddist);
-                weight *= MathF.Pow(mod5, modPow);
-            }
-           
-            aemaHold = Vector2.Lerp(aemaHold, ringOutput, weight);
-            aemaDir = aemaHold - lastAemaHold;
-            lastAemaHold = aemaHold;
-            acOutput += aemaDir;
-
+            Vector2 dist = ringOutput - acHold;
+            lastAcHold = acHold;
+            acDir = SFunction(dist.Length()) * Default(Vector2.Normalize(dist), Vector2.Zero);
+            acHold += acDir;
+            acOutput = acHold;
             if (dirSeparation > 0) {
-                acOutput = Vector2.Lerp(acOutput, Vector2.Lerp(aemaHold, ringOutput, dirSeparation), Math.Min(1, WireMultAdjust(weight, expect, updateTime, wire)) * stockWeight);
-                acOutput = Vector2.Lerp(acOutput, Vector2.Lerp(aemaHold, ringOutput, dirSeparation), stockWeight * dscalebonus);
+                if (!wire || updateTime / expect > 0.95f) {
+                    sepScale = Smoothstep(dist.Length(), -0.01f, moddist);
+                    sepScale *= sepScale;
+                }
+                sepScale = MathF.Pow(sepScale, 1 / (1 + Smoothstep(accel[0], 0, -50 * areaScale)));
+                acOutput = Vector2.Lerp(acHold, Vector2.Lerp(acHold, ringOutput, dirSeparation), sepScale * WireWeightAdjust(stockWeight, expect, updateTime, wire));
             }
 
+            float mod4 = 0;
             if (aResponse > 0f) {
-                float dist = Vector2.Distance(acOutput, aemaOutput);
-                mod4 = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * MathF.Pow(Smoothstep(dist, 2500 * aResponse, (500 * aResponse) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 30 * areaScale), 3.0f) * DotNorm(ddir[0], dir[0], 0);
+                float aDist = Vector2.Distance(acOutput, aemaOutput);
+                mod4 = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * MathF.Pow(Smoothstep(aDist, 2500 * aResponse, (500 * aResponse) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 25 * areaScale), 3.0f) * DotNorm(ddir[0], dir[0], 0);
             }
-            
-            weight = Math.Clamp(1 - mod4, 0, 1);
-            aemaOutput = Vector2.Lerp(aemaOutput, acOutput, Math.Clamp(WirePowAdjust(weight, expect, updateTime, wire), 0, 1));
+            float weight = Math.Clamp(1 - mod4, 0, stockWeight);
+            aemaOutput = Vector2.Lerp(aemaOutput, acOutput, WireWeightAdjust(weight, expect, updateTime, wire));
+        }
+
+        float SFunction(float dist) {
+            if (dist >= moddist) return dist - halfmoddist;
+            float x = (dist / moddist);
+            return x * x * halfmoddist;
         }
 
         void Initialize() {
+            halfmoddist = moddist * 0.5f;
             if (msOverride > 0) {
                 reportMsAvg = msOverride;
                 expectC = reportMsAvg / expect;
@@ -533,8 +534,8 @@ namespace Saturn
             iRingPos1 = pos[0];
             iRingPos0 = pos[0];
             ringOutput = pos[0];
-            lastAemaHold = pos[0];
-            aemaHold = pos[0];
+            lastAcHold = pos[0];
+            acHold = pos[0];
             acOutput = pos[0];
             aemaOutput = pos[0];
         }
@@ -558,12 +559,13 @@ namespace Saturn
 
         Vector2 startOutput;
         Vector2 ringInputPos0, ringInputPos1, ringInputDir, iRingPos0, iRingPos1, ringDir, ringOutput;
-        Vector2 aemaHold, lastAemaHold, aemaDir, acOutput, aemaOutput;
+        Vector2 acHold, lastAcHold, acDir, acOutput, aemaOutput;
         Vector2 lastOutputPos, dirOfOutput;
         float reportTime;
         float adjdWeight, adjDacOuter;
         float correctWeight;
         float dscalebonus;
+        float halfmoddist;
         bool init = false;
         int emergency;
 
@@ -573,6 +575,7 @@ namespace Saturn
 
         float reportMsAvg;
         float updateTime;
+        float sepScale;
         bool eflag = false;
         
         bool consume;

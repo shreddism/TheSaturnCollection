@@ -115,7 +115,7 @@ namespace Saturn
         (
             "Possible range: 0.0 - any, default 50.0\n\n" +
             
-            "Fairly self-explanatory. This shouldn't go too high.\n" +
+            "Fairly self-explanatory.\n" +
             "If you drag, consider setting this to 0 and just using an inner radius.\n" +
             "Directional Separation controls behavior."
         )]
@@ -124,18 +124,6 @@ namespace Saturn
             get => _moddist;
         }
         public float _moddist;
-
-        [Property("Distance Smoothing Power"), DefaultPropertyValue(5.0f), ToolTip
-        (
-            "Possible range: 0.01 - any, default 5.0\n\n" +
-
-            "Raises the weight of the above setting to this value. This shouldn't go too high."
-        )]
-        public float modPow { 
-            set => _modPow = Math.Max(value, 0.01f);
-            get => _modPow;
-        }
-        public float _modPow;
 
         [Property("Directional Separation"), DefaultPropertyValue(1.0f), ToolTip
         (
@@ -287,36 +275,36 @@ namespace Saturn
             }
         }
 
-       void AEMA() {
-            float weight = stockWeight;
-            float mod4 = 0;
-
-            if (moddist > 0f) {
-                float dist = Vector2.Distance(aemaHold, ringOutput);
-                float mod5 = Smoothstep(dist + vel[0] - accel[0], -0.01f, moddist);
-                weight *= MathF.Pow(mod5, modPow);
-            }
-           
-            aemaHold = Vector2.Lerp(aemaHold, ringOutput, weight);
-            aemaDir = aemaHold - lastAemaHold;
-            lastAemaHold = aemaHold;
-            acOutput += aemaDir;
-
+        void AEMA() {
+            Vector2 dist = ringOutput - acHold;
+            lastAcHold = acHold;
+            acDir = SFunction(dist.Length()) * Default(Vector2.Normalize(dist), Vector2.Zero);
+            acHold += acDir;
+            acOutput = acHold;
             if (dirSeparation > 0) {
-                acOutput = Vector2.Lerp(acOutput, Vector2.Lerp(aemaHold, ringOutput, dirSeparation), weight * stockWeight);
-                acOutput = Vector2.Lerp(acOutput, Vector2.Lerp(aemaHold, ringOutput, dirSeparation), stockWeight * dscalebonus);
+                float sepScale = Smoothstep(dist.Length(), -0.01f, moddist);
+                sepScale *= sepScale;
+                sepScale = MathF.Pow(sepScale, 1 / (1 + Smoothstep(accel[0], 0, -50 * areaScale)));
+                acOutput = Vector2.Lerp(acHold, Vector2.Lerp(acHold, ringOutput, dirSeparation), sepScale * stockWeight);
             }
 
+            float mod4 = 0;
             if (aResponse > 0f) {
-                float dist = Vector2.Distance(acOutput, aemaOutput);
-                mod4 = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * MathF.Pow(Smoothstep(dist, 2500 * aResponse, (500 * aResponse) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 25 * areaScale), 3.0f) * DotNorm(ddir[0], dir[0], 0);
+                float aDist = Vector2.Distance(acOutput, aemaOutput);
+                mod4 = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * MathF.Pow(Smoothstep(aDist, 2500 * aResponse, (500 * aResponse) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 25 * areaScale), 3.0f) * DotNorm(ddir[0], dir[0], 0);
             }
-            
-            weight = Math.Clamp(1 - mod4, 0, 1);
+            float weight = Math.Clamp(1 - mod4, 0, stockWeight);
             aemaOutput = Vector2.Lerp(aemaOutput, acOutput, Math.Min(1, weight));
         }
 
+        float SFunction(float dist) {
+            if (dist >= moddist) return dist - halfmoddist;
+            float x = (dist / moddist);
+            return x * x * halfmoddist;
+        }
+
         void Initialize() {
+            halfmoddist = moddist * 0.5f;
             adjDacOuter = Math.Max(dacOuter, dacInner + 0.01f);
             correctWeight = startCorrectWeight;
             if (dacInner + dacOuter == 0f) {
@@ -331,8 +319,8 @@ namespace Saturn
             iRingPos1 = pos[0];
             iRingPos0 = pos[0];
             ringOutput = pos[0];
-            lastAemaHold = pos[0];
-            aemaHold = pos[0];
+            lastAcHold = pos[0];
+            acHold = pos[0];
             acOutput = pos[0];
             aemaOutput = pos[0];
         }
@@ -353,12 +341,13 @@ namespace Saturn
         
         Vector2 startOutput;
         Vector2 ringInputPos0, ringInputPos1, ringInputDir, iRingPos0, iRingPos1, ringDir, ringOutput;
-        Vector2 aemaHold, lastAemaHold, aemaDir, acOutput, aemaOutput;
+        Vector2 acHold, lastAcHold, acDir, acOutput, aemaOutput;
         Vector2 lastOutputPos, dirOfOutput;
         float reportTime;
         float adjdWeight, adjDacOuter;
         float correctWeight;
         float dscalebonus;
+        float halfmoddist;
         bool init = false;
         int emergency;
         
