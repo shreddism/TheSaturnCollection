@@ -17,8 +17,11 @@ namespace Saturn
 
         public PipelinePosition Position => PipelinePosition.PreTransform;
 
-        [Property("Reverse EMA"), DefaultPropertyValue(1.0f), ToolTip
+        [Property("Reverse EMA (Hover Over The Textbox)"), DefaultPropertyValue(1.0f), ToolTip
         (
+            "Important: This multifilter is suitable for users who have tablet report rates extremely close to a multiple of their display refresh rate\n" +
+            "or users with alien technology. Otherwise, the position interpolated version should work better.\n\n" +
+
             "Possible range: 0.001 - 1.0, default 1.0\n\n" +
 
             "Equivalent to what is seen in Reconstructor and Temporal Resampler.\n" +

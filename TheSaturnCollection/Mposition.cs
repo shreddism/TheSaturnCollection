@@ -209,7 +209,7 @@ namespace Saturn
         }
         public float _xMod;
 
-        [Property("Wacom PTK-x70 Series Toggle"), DefaultPropertyValue(false), ToolTip
+        [BooleanProperty("Wacom PTK-x70 Series Toggle", ""), DefaultPropertyValue(false), ToolTip
         (
             "Enables behavioral tweaks that improve the experience on a Wacom PTK-x70 tablet, like not bugging out on press/lift.\n" +
             "May be applicable on a PTH-x60 tablet, but this is untested."
