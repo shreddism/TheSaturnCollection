@@ -13,7 +13,7 @@ namespace Saturn
     {
         public override PipelinePosition Position => PipelinePosition.PostTransform;
 
-        [Property("Resolution Scale (Hover Over The Textbox Before Enabling For The First Time)"), DefaultPropertyValue(1f), ToolTip
+        [Property("Resolution Scale (Hover Over The Textbox Before Enabling For The First Time)"), DefaultPropertyValue(1.0f), ToolTip
         (
             "Important: This should probably be the last Post-Transform plugin applied.\n" +
             "If you are planning to use Circular Area and this at the same time,\n" +
