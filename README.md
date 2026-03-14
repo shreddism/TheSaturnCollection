@@ -154,7 +154,7 @@ Self explanatory. Full area PTK-470 can work with 1. Full area CTL-472 can work 
 Multiplies the X values that the internals of the filter work on and divides outputs by the value. Makes the entire filter screen-space (if done right)! Example: 2560x1440 display (16/9) and 90x60 area (3/2) makes (16/9) / (3/2), which appears to be 1.185185 repeating. This value would be used.
 
 # Pixel Grid
-The effect is self-explanatory, but this is a Post-Transform filter, so it does not work on relative mode, and it should be made sure that this is the last Post-Transform filter, going after Circular Area and Radial Follow (Screen Space).
+The effect is self-explanatory, but it should be made sure that this is the last Post-Transform filter, going after Circular Area and Radial Follow (Screen Space).
 
 To change ordering or if you are unsure:
 
