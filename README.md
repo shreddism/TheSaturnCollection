@@ -16,7 +16,7 @@ Both interpolation methods have a barely noticeable velocity racket when Wire is
 
 Due to an oversight, setting stock weight to 1, accel response aggressiveness to 0, AND *additional antichatter* to 0 (all three exact) just makes the filter not work. There's no good reason in existence to do this, though.
 
-If you are reading this on 0.7.0, fixes for all above issues are in progress. If you are reading this on 0.8.2, the issues have been fixed.
+If you are reading this on 0.7.0, fixes for all above issues are awaiting being merged. If you are reading this on 0.8.2, the issues have been fixed.
 
 ## Things You Should Probably Know
 
@@ -151,6 +151,8 @@ This should probably always be 1 for multiple reasons, an important one being th
 Self explanatory. Full area PTK-470 can work with 1. Full area CTL-472 can work with 0.5.
 
 #### X Modifier
+This setting is broken on 0.7.0! The fix is awaiting being merged in 0.8.2.
+
 Multiplies the X values that the internals of the filter work on and divides outputs by the value. Makes the entire filter screen-space (if done right)! Example: 2560x1440 display (16/9) and 90x60 area (3/2) makes (16/9) / (3/2), which appears to be 1.185185 repeating. This value would be used.
 
 # Pixel Grid
