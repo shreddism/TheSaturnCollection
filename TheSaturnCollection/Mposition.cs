@@ -157,7 +157,7 @@ namespace Saturn
             "From 0.0 to 1.0, takes Smoothed Antichatter from extra smoothing to an extra transition to raw."
         )]
         public float dirSeparation {
-            set => _dirSeparation = Math.Clamp(value, 0.0f, 1.0f);
+            set => _dirSeparation = Math.Clamp(value, 0.0f, 100000.0f);
             get => _dirSeparation;
         }
         public float _dirSeparation;
@@ -319,21 +319,21 @@ namespace Saturn
                     report.Position = new Vector2(aemaOutput.X / xMod, aemaOutput.Y);
                 }       
 
-               // Plot();
+                Plot();
 
                 OnEmit();
             }
         }
 
         void Plot() {
-            Console.Write("vx");
+         /*   Console.Write("vx");
             Console.WriteLine(((updateTime * 100)));
             Console.Write("vy");
-            Console.WriteLine(((dirOfOutput.Length() * 10)));
-            Console.Write("ax");
-            Console.WriteLine(((dirOfOutput).X));
-            Console.Write("ay");
-            Console.WriteLine(((dirOfOutput).Y) * -1);
+            Console.WriteLine(((dirOfOutput.Length() * 10))); */
+            Console.Write("vx");
+            Console.WriteLine(((aemaOutput - startOutput).X));
+            Console.Write("vy");
+            Console.WriteLine(((aemaOutput - startOutput).Y) * -1);
             Console.WriteLine("xx");
             Console.WriteLine("dd");
         }
@@ -427,18 +427,21 @@ namespace Saturn
 
         void AEMA() {
             Vector2 dist = ringOutput - acHold;
+            float dl = dist.Length();
             lastAcHold = acHold;
-            acDir = SFunction(dist.Length()) * Default(Vector2.Normalize(dist), Vector2.Zero);
+            float mLength = SFunction(dist.Length());
+            float wcon = WireWeightAdjust(stockWeight * Default(mLength / dl, 1), expect, updateTime, wire);
+            
+            acDir = wcon * dist;
             acHold += acDir;
             acOutput = acHold;
 
             if (dirSeparation > 0) {
-                if (!wire || updateTime / expect > 0.95f) {
-                    sepScale = Smoothstep(dist.Length(), -0.01f, moddist);
-                    sepScale *= sepScale;
+                if (!wire || updateTime / expect > 0.99f) {
+                    sepScale = Smoothstep(dist.Length(), -0.01f, moddist * dirSeparation);
                 }
                     
-                acOutput = Vector2.Lerp(acHold, Vector2.Lerp(acHold, ringOutput, dirSeparation), sepScale);
+                acOutput = Vector2.Lerp(acHold, Vector2.Lerp(acHold, ringOutput, stockWeight), sepScale);
             }
 
             float mod4 = 0;
@@ -446,7 +449,7 @@ namespace Saturn
                 float aDist = Vector2.Distance(acOutput, aemaOutput);
                 mod4 = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * MathF.Pow(Smoothstep(aDist, 2500 * aResponse, (500 * aResponse) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 25 * areaScale), 3.0f) * DotNorm(ddir[0], dir[0], 0);
             }
-            float weight = Math.Clamp(1 - mod4, 0, stockWeight);
+            float weight = Math.Clamp(1 - mod4, 0, 1);
             aemaOutput = Vector2.Lerp(aemaOutput, acOutput, WireWeightAdjust(weight, expect, updateTime, wire));
         }
 
