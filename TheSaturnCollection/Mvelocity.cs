@@ -404,8 +404,6 @@ namespace Saturn
             }
         }
 
-        Vector2 saveStart;
-
         void Plot() {
             Console.Write("vx");
             Console.WriteLine(((updateTime * 100)));

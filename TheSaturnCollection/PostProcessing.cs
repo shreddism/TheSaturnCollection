@@ -4,22 +4,35 @@ using OpenTabletDriver;
 using OpenTabletDriver.Plugin.Attributes;
 using OpenTabletDriver.Plugin.Output;
 using OpenTabletDriver.Plugin.Tablet;
+using OpenTabletDriver.Plugin.Timing;
 using static Saturn.Utils;
 
 namespace Saturn
 {
-    [PluginName("Saturn - Pixel Grid")]
-    public sealed class PixelGrid : OutputModeAware
+    [PluginName("Saturn - Post-Processing")]
+    public class PostProcessing : OutputModeAware
     {
         public override PipelinePosition Position => PipelinePosition.PostTransform;
 
-        [Property("Resolution Scale (Hover Over The Textbox Before Enabling For The First Time)"), DefaultPropertyValue(1.0f), ToolTip
+        [Property("Number"), DefaultPropertyValue(0.0f), ToolTip
         (
             "Important: This should probably be the last Post-Transform plugin applied.\n" +
             "If you are planning to use Circular Area and this at the same time,\n" +
             "check console output to make sure this is the last Post-Transform plugin.\n" +
             "If it isn't, or you are unsure, see the instructions on the wiki.\n" +
 
+            "Possible range: 0.0 - any, default 0.0\n" +
+            "post transform absolute to relative"
+        )]
+        public float reset
+        {
+            set => _reset = Math.Max(0.0f, value);
+            get => _reset;
+        }
+        public float _reset;
+
+        [Property("Resolution Scale (Hover Over The Textbox Before Enabling For The First Time)"), DefaultPropertyValue(1.0f), ToolTip
+        (
             "Possible range: 1.0 - any, default 1.0\n" +
             "This filter truncates the pixel position of the cursor.\n" +
             "This multiplies the position by its value before truncating it, increasing resolution.\n" +
@@ -46,22 +59,19 @@ namespace Saturn
             {
                 HandleOutputMode(report.Position);
 
+                if (!initFlag) initFlag = true;
+
                 pxOutput = pos[0];
                 
                 pxOutput *= gridMult;
                 pxOutput = new Vector2(MathF.Floor(pos[0].X), MathF.Floor(pos[0].Y));
                 pxOutput /= gridMult;
-
-                if (dynamicMode) {
-                    if ((Vector2.Distance(checkPos, pos[0]) >= 1 / gridMult) && (pxOutput != outputPos[0])) {
-                        checkPos = pos[0];
-                        InsertAtFirst(outputPos, pxOutput);
-                    }
-                    else {
-                        InsertAtFirst(outputPos, outputPos[0]);
-                    }
+                
+                if ((!dynamicMode) || ((Vector2.Distance(checkPos, pos[0]) + (dir[0] + dir[1] + dir[2] + dir[3]).Length() >= 1 / gridMult) && (pxOutput != outputPos[0]))) {
+                    checkPos = pos[0];
+                    InsertAtFirst(outputPos, pxOutput);
                 }
-                else InsertAtFirst(outputPos, pxOutput);
+                else InsertAtFirst(outputPos, outputPos[0]);
 
                 if (relativeFlag) {
                     report.Position = outputPos[0] - outputPos[1];
@@ -72,17 +82,28 @@ namespace Saturn
             Emit?.Invoke(value);
         }
 
-        void HandleOutputMode(Vector2 point) {
+        void HandleOutputMode(Vector2 input) {
+            float reportTime = (float)reportStopwatch.Restart().TotalMilliseconds;
             OutputModeType outputMode = GetOutputMode();
-            if (outputMode == OutputModeType.absolute) { 
-                InsertAtFirst(pos, point);
+            if (outputMode == OutputModeType.absolute) {
+                if (reset == 0f) {
+                InsertAtFirst(pos, input);
                 InsertAtFirst(dir, pos[0] - pos[1]);
-                relativeFlag = false;
+                }
+                else {
+                    InsertAtFirst(dir, input - fRelPoint);
+                    if (reportTime < reset || !initFlag) {
+                        InsertAtFirst(pos, pos[0] + dir[0]);
+                    }
+                    else {
+                        NonInsertAtFirst(pos);
+                    }
+                    fRelPoint = input;
+                }
             }
             else if (outputMode == OutputModeType.relative) {
-                InsertAtFirst(dir, point);
-                Vector2 position = pos[0] + dir[0];
-                InsertAtFirst(pos, position);
+                InsertAtFirst(dir, input);
+                InsertAtFirst(pos, pos[0] + dir[0]);
                 relativeFlag = true;
             }
         }
@@ -92,12 +113,16 @@ namespace Saturn
         Vector2[] pos = new Vector2[HMAX];
         Vector2[] dir = new Vector2[HMAX];
         Vector2[] outputPos = new Vector2[HMAX];
+
+        Vector2 fRelPoint;
         
         Vector2 checkPos;
 
         Vector2 pxOutput;
 
-        bool relativeFlag;
+        bool relativeFlag = false;
+        bool initFlag = false;
 
+        private HPETDeltaStopwatch reportStopwatch = new HPETDeltaStopwatch();
     }
 }
