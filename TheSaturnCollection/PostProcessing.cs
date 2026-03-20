@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using OpenTabletDriver;
+using OpenTabletDriver.Plugin;
 using OpenTabletDriver.Plugin.Attributes;
 using OpenTabletDriver.Plugin.Output;
 using OpenTabletDriver.Plugin.Tablet;
@@ -14,22 +15,34 @@ namespace Saturn
     {
         public override PipelinePosition Position => PipelinePosition.PostTransform;
 
-        [Property("Number"), DefaultPropertyValue(0.0f), ToolTip
+        [Property("Reset Time"), DefaultPropertyValue(0.0f), ToolTip
         (
             "Important: This should probably be the last Post-Transform plugin applied.\n" +
             "If you are planning to use Circular Area and this at the same time,\n" +
             "check console output to make sure this is the last Post-Transform plugin.\n" +
             "If it isn't, or you are unsure, see the instructions on the wiki.\n" +
 
-            "Possible range: 0.0 - any, default 0.0\n" +
-            "post transform absolute to relative"
+            "Possible range: 0.001 - any, default 0.0\n" +
+            "Sets resetTime time for post-processing output mode converted from absolute.\n" +
+            "If on relative mode, there is no effect."
         )]
-        public float reset
+        public float resetTime
         {
-            set => _reset = Math.Max(0.0f, value);
-            get => _reset;
+            set => _resetTime = Math.Max(0.0f, value);
+            get => _resetTime;
         }
-        public float _reset;
+        public float _resetTime;
+
+        [Property("Deadzone Time"), DefaultPropertyValue(500f), ToolTip
+        (
+            "Nothing will register for this many milliseconds after resetting."
+        )]
+        public float deadzoneTime
+        {
+            set => _deadzoneTime = Math.Max(value, 0f);
+            get => _deadzoneTime;
+        }
+        public float _deadzoneTime;
 
         [Property("Resolution Scale (Hover Over The Textbox Before Enabling For The First Time)"), DefaultPropertyValue(1.0f), ToolTip
         (
@@ -45,7 +58,7 @@ namespace Saturn
         }
         public float _gridMult;
 
-        [BooleanProperty("Dynamic Mode", ""), DefaultPropertyValue(true), ToolTip
+        [BooleanProperty("Dynamic Mode", ""), DefaultPropertyValue(false), ToolTip
         (
             "The cursor won't move if the input position has not changed by one scaled pixel since the last move."
         )]
@@ -57,6 +70,16 @@ namespace Saturn
         {
             if (value is ITabletReport report)
             {
+                reportTime = (float)reportStopwatch.Restart().TotalMilliseconds;
+
+                if (dTimeRemaining == 0) resetFlag = false;
+
+                if (reportTime > resetTime) {
+                    dTimeRemaining = deadzoneTime;
+                    resetFlag = true;
+                }
+                else dTimeRemaining = Math.Max(0, dTimeRemaining - reportTime);
+                
                 HandleOutputMode(report.Position);
 
                 if (!initFlag) initFlag = true;
@@ -83,29 +106,31 @@ namespace Saturn
         }
 
         void HandleOutputMode(Vector2 input) {
-            float reportTime = (float)reportStopwatch.Restart().TotalMilliseconds;
-            OutputModeType outputMode = GetOutputMode();
-            if (outputMode == OutputModeType.absolute) {
-                if (reset == 0f) {
+            OutputMode outputMode = GetOutputMode();
+            if (outputMode.Type == OutputType.absolute) {
+
+                if (resetTime == 0f) {
                 InsertAtFirst(pos, input);
                 InsertAtFirst(dir, pos[0] - pos[1]);
                 }
                 else {
                     InsertAtFirst(dir, input - fRelPoint);
-                    if (reportTime < reset || !initFlag) {
+                    if (!resetFlag || !initFlag) {
                         InsertAtFirst(pos, pos[0] + dir[0]);
+                        Console.WriteLine("---");
                     }
                     else {
+                        Console.WriteLine("---=");
                         NonInsertAtFirst(pos);
                     }
                     fRelPoint = input;
                 }
             }
-            else if (outputMode == OutputModeType.relative) {
+            else if (outputMode.Type == OutputType.relative) {
                 InsertAtFirst(dir, input);
                 InsertAtFirst(pos, pos[0] + dir[0]);
                 relativeFlag = true;
-            }
+            } 
         }
 
         const int HMAX = 4;
@@ -115,13 +140,15 @@ namespace Saturn
         Vector2[] outputPos = new Vector2[HMAX];
 
         Vector2 fRelPoint;
-        
         Vector2 checkPos;
-
         Vector2 pxOutput;
 
         bool relativeFlag = false;
         bool initFlag = false;
+        bool resetFlag = false;
+
+        float reportTime;
+        float dTimeRemaining;
 
         private HPETDeltaStopwatch reportStopwatch = new HPETDeltaStopwatch();
     }
