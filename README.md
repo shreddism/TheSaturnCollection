@@ -14,7 +14,7 @@ Both interpolation methods have a barely noticeable velocity racket when Wire is
 
 Due to an oversight, setting stock weight to 1, accel response aggressiveness to 0, AND *additional antichatter* to 0 (all three exact) just makes the filter not work. There's no good reason in existence to do this, though.
 
-If you are reading this right now, the readme is being updated to fit with version 0.9.0 at the current moment! It is awaiting being merged.
+If you are reading this right now, 0.9.0 is awaiting to be merged. It fixes these issues among a lot of other things.
 
 ## Things You Should Probably Know
 
@@ -158,3 +158,17 @@ Multiplies the X values that the internals of the filter work on and divides out
 You may need to apply and save multiple times for settings to apply properly.
 
 Multiple binding options are available to move your area. These are pretty much self explanatory and pretty much anything can be done with these abilities.
+
+## Reset Modes
+
+#### Set Tablet Area Center To Position
+This effectively puts the cursor to the center of the display setting's area.
+
+#### Drag Tablet Area / Fake Relative Mode
+These internally do the same thing, but dragging holds the reset while fake relative mode just triggers it.
+
+#### Set Both Centers To Posiiton
+This sets the center of the display area's setting. which changes where setting the tablet area's center to position will put the cursor.
+
+#### Reset To Stock Settings
+Self-explanatory. Might need multiple applies/saves to function.
