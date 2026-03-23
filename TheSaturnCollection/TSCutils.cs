@@ -11,8 +11,17 @@ namespace Saturn {
         public static float Default(float a, float b) => float.IsFinite(a) ? a : b;
         public static float WireMultAdjust(float a, float be, float br, bool w) => w ? a * Math.Clamp(br / be, 0, 1.5f) : a;
         public static float WirePowAdjust(float a, float be, float br, bool w) => w ? MathF.Pow(a, Math.Max(be / br, 0.66f)) : a;
+        public static float WireWeightAdjust(float a, float be, float br, bool w) => w ? 1 - MathF.Pow(1 - Math.Clamp(a, 0, 1), Math.Clamp(br / be, 0, 1.5f)) : a;
         public static float DotNorm(Vector2 a, Vector2 b) => Vector2.Dot(Vector2.Normalize(a), Vector2.Normalize(b));
         public static float DotNorm(Vector2 a, Vector2 b, float x) => (a != Vector2.Zero && b != Vector2.Zero) ? Vector2.Dot(Vector2.Normalize(a), Vector2.Normalize(b)) : x;
+
+        public static float XWA(float be, float br, bool b, float ce, float cr, bool c) {
+            if (b) return Math.Clamp(br / be, 0.0f, 1.5f);
+            if (c) return Default(cr / ce, 1.0f);
+            return 1.0f;
+        }
+
+        public static float UAdjust(float a, float b) => 1 - MathF.Pow(1 - a, b);
         
         public static bool vec2IsFinite(Vector2 vec) => float.IsFinite(vec.X) & float.IsFinite(vec.Y);
 
@@ -22,10 +31,21 @@ namespace Saturn {
             arr[0] = element;
         }
 
+        public static void NonInsertAtFirst<T>(T[] arr)
+        {
+            for (int p = arr.Length - 1; p > 0; p--) arr[p] = arr[p - 1];
+        }
+
         public static float Smoothstep(float x, float start, float end)
         {
             x = Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
             return x * x * (3.0f - 2.0f * x);
+        }
+
+        public static float Powstep(float x, float start, float end, float p)
+        {
+            x = Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
+            return MathF.Pow(x, p);
         }
 
         public static Vector2 Trajectory(Vector2 p0, Vector2 p1, Vector2 p2, float t) {
