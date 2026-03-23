@@ -1,6 +1,6 @@
 # The Saturn Collection [![Total Download Count](https://img.shields.io/github/downloads/shreddism/TheSaturnCollection/total.svg)](https://github.com/shreddism/TheSaturnCollection/releases)
  
-A set of filters which is planned to grow to include the current multifilter for all different types of users, as well as more niche optional plugins, like a velocity curve for artists or other general users who can contend with tablet drift for their use case. For now only the main multifilters exist. This makes the naming convention look a little weird, but it's still correct and allows for additions.
+A set of filters which is planned to grow to include the current multifilter for all different types of users, as well as more niche optional plugins.
 
 Formatting may be non-final.
 
