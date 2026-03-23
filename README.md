@@ -48,8 +48,6 @@ This means that you want to enable ANYTHING along with a multifilter (including 
 It'll function just fine if everything is set well, but internal workings/timing consideration may be unreliable based on filter order, which is currently kind of unpredictable.
 Please consider attempting to be able to do more with less before resorting to overfiltering.
 
-Some combinations currently make perfect sense. If the version is 0.8.0 and you are on absolute mode (this does not work on relative), you can massively reduce Additional Antichatter and use Radial Follow (Screen Space) with only an outer radius to preference.
-
 # Multifilter Settings
 
 Settings tooltips will appear on hovering over a setting's textbox. This further breakdown is assuming that you have read them.
