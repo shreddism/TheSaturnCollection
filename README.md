@@ -14,7 +14,7 @@ Both interpolation methods have a barely noticeable velocity racket when Wire is
 
 Due to an oversight, setting stock weight to 1, accel response aggressiveness to 0, AND *additional antichatter* to 0 (all three exact) just makes the filter not work. There's no good reason in existence to do this, though.
 
-If you are reading this right now, 0.9.0 is awaiting to be merged. It fixes these issues among a lot of other things.
+If you are reading this right now, 0.9.0 is on a branch waiting to be merged. It fixes these issues among making a whole lot of improvements. The readme is currently fit to this version.
 
 ## Things You Should Probably Know
 
