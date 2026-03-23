@@ -244,11 +244,11 @@ namespace Saturn
                 consumeDelta = reportTime / 1000f;
                 if (reportTime < 25f && reportTime > 0.01f) {
                     if (msOverride == 0) {
-                    reportMsAvg += ((reportTime - reportMsAvg) * 0.1f);
-                    rpsAvg += (1f / (consumeDelta) - rpsAvg) * (1f - MathF.Exp(-2f * (consumeDelta)));
-                    secAvg = 1f / rpsAvg;
-                    msAvg = 1000f * secAvg;
-                    correctWeight = startCorrectWeight * expect * (msStandard / reportMsAvg);
+                        reportMsAvg += ((reportTime - reportMsAvg) * 0.1f);
+                        rpsAvg += (1f / (consumeDelta) - rpsAvg) * (1f - MathF.Exp(-2f * (consumeDelta)));
+                        secAvg = 1f / rpsAvg;
+                        msAvg = 1000f * secAvg;
+                        correctWeight = startCorrectWeight * expect * (msStandard / reportMsAvg);
                     }
                     if (emergency > 0)
                     emergency--;    
@@ -334,23 +334,8 @@ namespace Saturn
                     report.Position = new Vector2(outputInternal.X / xMod, outputInternal.Y);
                 }       
 
-              //  Plot();
-
                 OnEmit();
             }
-        }
-
-        void Plot() {
-         /*   Console.Write("vx");
-            Console.WriteLine(((updateTime * 100)));
-            Console.Write("vy");
-            Console.WriteLine(((dirOfOutput.Length() * 10))); */
-            Console.Write("vx");
-            Console.WriteLine(((adaptOutput - startOutput).X));
-            Console.Write("vy");
-            Console.WriteLine(((adaptOutput - startOutput).Y) * -1);
-            Console.WriteLine("xx");
-            Console.WriteLine("dd");
         }
 
         void StatUpdate(ITabletReport report) {

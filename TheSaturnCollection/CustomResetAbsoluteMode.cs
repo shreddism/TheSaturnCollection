@@ -124,7 +124,7 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                     report.Position = holdPos;
                 }
 
-                if (lastResetCode != 1) {
+                if (lastResetCode != 1 && tLogInfo) {
                     Log.Write("CustomResetAbsoluteMode", "Setting the tablet area's center to the cursor's position...");
                     Log.Write("CustomResetAbsoluteMode", "This effectively sets the cursor to the display center.");
                 }
@@ -156,7 +156,7 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                     report.Position = holdPos;
                 }
  
-                if (lastResetCode != 2) {
+                if (lastResetCode != 2 && tLogInfo) {
                     if (!tResetFlag) {
                         Log.Write("CustomResetAbsoluteMode", "Dragging the tablet area...");
                     }
@@ -185,7 +185,7 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                 BaseTransform(report);
                 UpdateOutputPos(report.Position);
                 
-                if (lastResetCode != -1) {
+                if (lastResetCode != -1 && tLogInfo) {
                     Log.Write("CustomResetAbsoluteMode", "Setting the centers of both areas to the cursor's position...");
                 }
             }
@@ -196,9 +196,11 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                     UpdateOutputPos(stockOutput);
                     TransformationMatrix = base.CreateTransformationMatrix();
                     stockResetFlag = true;
-                    Log.Write("CustomResetAbsoluteMode", "Resetting both areas to stock settings...");
-                    Log.Write("CustomResetAbsoluteMode", "Display Area: " + Output);
-                    Log.Write("CustomResetAbsoluteMode", "Tablet Area: " + Input);
+                    if (tLogInfo) {
+                        Log.Write("CustomResetAbsoluteMode", "Resetting both areas to stock settings...");
+                        Log.Write("CustomResetAbsoluteMode", "Display Area: " + Output);
+                        Log.Write("CustomResetAbsoluteMode", "Tablet Area: " + Input);
+                    }
                 }
 
                 BaseTransform(report);
@@ -224,7 +226,7 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                 if (!tResetFlag) BaseTransform(report);
                 tResetFlag = false;
 
-                if (lastResetCode != 0 && lastResetCode != -2) {
+                if (lastResetCode != 0 && lastResetCode != -2 && tLogInfo) {
                     Log.Write("CustomResetAbsoluteMode", "Display Area: " + Output);
                     Log.Write("CustomResetAbsoluteMode", "Tablet Area: " + Input);
                 }
@@ -268,21 +270,16 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                 if (tPixelGridFlag && outputCompleteIgnores == 0 && transformCompleteFlag) {
                     PostProcessingStatUpdate(report.Position);
                     pxOutput = pos[0];
-                
-                pxOutput *= tPixelGridMult;
-                pxOutput = new Vector2(MathF.Floor(pos[0].X), MathF.Floor(pos[0].Y));
-                pxOutput /= tPixelGridMult;
-                
-                if ((!tDynamicMode) || ((Vector2.Distance(checkPos, pos[0]) + (dir[0] + dir[1] + dir[2] + dir[3]).Length() >= 1 / tPixelGridMult) && (pxOutput != outputPos[0]))) {
-                    checkPos = pos[0];
-                    InsertAtFirst(outputPos, pxOutput);
-                }
+                    pxOutput *= tPixelGridMult;
+                    pxOutput = new Vector2(MathF.Floor(pos[0].X), MathF.Floor(pos[0].Y));
+                    pxOutput /= tPixelGridMult;
+                    if ((!tDynamicMode) || ((Vector2.Distance(checkPos, pos[0]) + (dir[0] + dir[1] + dir[2] + dir[3]).Length() >= 1 / tPixelGridMult) && (pxOutput != outputPos[0]))) {
+                        checkPos = pos[0];
+                        InsertAtFirst(outputPos, pxOutput);
+                    }
+
                     report.Position = outputPos[0];
                 }
-
-
-
-                Console.WriteLine(report.Position);
             }
             
             reportIsFirstAfterConsume = false;
@@ -355,6 +352,7 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
     float tPixelGridMult;
     bool tPixelGridFlag;
     bool tDynamicMode;
+    bool tLogInfo;
     
     public void AttemptInitialization() {
         if (Tablet != null) {
@@ -380,8 +378,8 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                 tPixelGridMult = CustomResetAbsoluteModeSettings.tPixelGridMult;
                 if (tPixelGridMult >= 1.0f) tPixelGridFlag = true;
                 else tPixelGridFlag = false;
-
                 tDynamicMode = CustomResetAbsoluteModeSettings.tDynamicMode;
+                tLogInfo = CustomResetAbsoluteModeSettings.tLogInfo;
 
                 tResetCode = CustomResetAbsoluteModeSettings.tResetCode;
                 initFlag = true;
@@ -466,6 +464,7 @@ public class CustomResetAbsoluteModeBinding : IStateBinding
         if (!initFlag) {
             Initialize();
         }
+
         if (resetCodeSetting == bResetCode) {
             bReleaseFlag = true;
             bPressFlag = false;
@@ -558,7 +557,7 @@ public class CustomResetAbsoluteModeSettings : ITool
     internal static bool tDynamicMode = DEFAULT_DYNAMIC_MODE;
 
     private const string DEFAULT_PERSISTENCE_MODE = "Hard";
-    private const int DEFAULT_PERSISTENCE_CODE = 1;
+    private const int DEFAULT_PERSISTENCE_CODE = 2;
     [Property("Persistence Mode"), DefaultPropertyValue(DEFAULT_PERSISTENCE_MODE), PropertyValidated(nameof(persistenceModes)), ToolTip
     (
         "The default of Hard saves any changes even through applying/saving settings, only resetting settings when the binding for that is pressed.\n" +
@@ -567,7 +566,15 @@ public class CustomResetAbsoluteModeSettings : ITool
     public string persistenceMode { get; set; } = string.Empty;        // name "Mode" is displayed in GUI
     public static IEnumerable<string> persistenceModes { get; set; } = new List<string> { "Light", "Hard" };
     public string tPersistenceMode = DEFAULT_PERSISTENCE_MODE;
-    internal static int tPersistenceCode = 1;
+    internal static int tPersistenceCode = DEFAULT_PERSISTENCE_CODE;
+
+    private const bool DEFAULT_LOG_INFO = true;
+    [BooleanProperty("Log Info", ""), DefaultPropertyValue(DEFAULT_LOG_INFO), ToolTip
+    (
+        "Logs reset and area information."
+    )]
+    public bool logInfo { set; get; }
+    internal static bool tLogInfo = DEFAULT_LOG_INFO;
 
     public bool Initialize() {
         tResetTime = resetTime;
@@ -589,6 +596,7 @@ public class CustomResetAbsoluteModeSettings : ITool
             "Hard" => 2,
             _ => 1
         };
+        tLogInfo = logInfo;
         return true;
     }
 
@@ -600,6 +608,7 @@ public class CustomResetAbsoluteModeSettings : ITool
         tPixelGridMult = DEFAULT_PIXEL_GRID_MULT;
         tDynamicMode = DEFAULT_DYNAMIC_MODE;
         tPersistenceCode = DEFAULT_PERSISTENCE_CODE;
+        tLogInfo = DEFAULT_LOG_INFO;
     }
 }
 

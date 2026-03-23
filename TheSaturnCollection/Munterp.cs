@@ -34,6 +34,8 @@ namespace Saturn
             get => _reverseSmoothing;
         }
         public float _reverseSmoothing;
+        Vector2[] smpos = new Vector2[HMAX];
+
 
         [Property("Directional Antichatter Inner Threshold"), DefaultPropertyValue(0.0f), ToolTip
         (
@@ -64,14 +66,28 @@ namespace Saturn
             get => _dacOuter;
         }
         public float _dacOuter;
+        Vector2[] stdir = new Vector2[HMAX];
+        float adjDacOuter;
+
+        [Property("Inner Radius"), DefaultPropertyValue(25.0f), ToolTip
+        (
+            "Possible range: 0.0 - any, default 25.0\n\n" +
+
+            "A full deadzone for movement. Unit is in raw tablet data.\n" +
+            "Directionally separated with smooth position transition to raw based on itself."
+        )]
+        public float rInner { 
+            set => _rInner = Math.Max(value, 0.0f);
+            get => _rInner;
+        }
+        public float _rInner;
+        Vector2 clampHold, clampOutput;
 
         [Property("Stock EMA Weight"), DefaultPropertyValue(1.0f), ToolTip
         (
             "Possible range: 0.001 - 1.0, default 1.0\n\n" +
 
-            "EMA weight, but it can change based on the current situation and internal thresholds.\n" +
-            "This should hold for any reasonable area.\n" +
-            "Setting this too low may cause racket if wire is enabled. If you want this low, you won't miss wire.\n" +
+            "EMA weight, but it can change based on the current situation.\n" +
             "The below options control adaptivity."
         )]
         public float stockWeight { 
@@ -79,6 +95,34 @@ namespace Saturn
             get => _stockWeight;
         }
         public float _stockWeight;
+
+        [Property("Smoothed Antichatter"), DefaultPropertyValue(50.0f), ToolTip
+        (
+            "Possible range: 0.0 - any, default 50.0\n\n" +
+            
+            "Sets base behavior for distance smoothing. Unit is raw tablet data.\n" +
+            "Goes to raw position based on the setting below."
+        )]
+        public float smoothDist { 
+            set => _smoothDist = Math.Max(value, 0.0f);
+            get => _smoothDist;
+        }
+        public float _smoothDist;
+        float halfSmoothDist;
+        Vector2 smoothHold;
+
+        [Property("Separated Threshold Mult"), DefaultPropertyValue(1.0f), ToolTip
+        (
+            "Possible range: 0.5 - any, default 1.0\n\n" +
+
+            "Lower values are more eager to send smoothed position to raw."
+        )]
+        public float sepMult {
+            set => _sepMult = Math.Clamp(value, 0.5f, 100000.0f);
+            get => _sepMult;
+        }
+        public float _sepMult;
+        Vector2 smoothOutput;
 
         [Property("Accel Response Aggressiveness"), DefaultPropertyValue(0.0f), ToolTip
         (
@@ -97,45 +141,7 @@ namespace Saturn
             get => _aResponse;
         }
         public float _aResponse;
-
-        [Property("Inner Radius"), DefaultPropertyValue(20.0f), ToolTip
-        (
-            "Possible range: 0.0 - any, default 20.0\n\n" +
-
-            "A full deadzone for movement. Unit is in raw tablet data.\n" +
-            "Directionally separated with smooth position transition to raw based on itself."
-        )]
-        public float rInner { 
-            set => _rInner = Math.Max(value, 0.0f);
-            get => _rInner;
-        }
-        public float _rInner;
-
-        [Property("Smoothed Antichatter"), DefaultPropertyValue(50.0f), ToolTip
-        (
-            "Possible range: 0.0 - any, default 50.0\n\n" +
-            
-            "Fairly self-explanatory.\n" +
-            "If you drag, consider setting this to 0 and just using an inner radius.\n" +
-            "Directional Separation controls behavior."
-        )]
-        public float moddist { 
-            set => _moddist = Math.Max(value, 0.0f);
-            get => _moddist;
-        }
-        public float _moddist;
-
-        [Property("Directional Separation"), DefaultPropertyValue(1.0f), ToolTip
-        (
-            "Possible range: 0.0 - 1.0, default 1.0\n\n" +
-
-            "From 0.0 to 1.0, takes Smoothed Antichatter from extra smoothing to an extra transition to raw."
-        )]
-        public float dirSeparation {
-            set => _dirSeparation = Math.Clamp(value, 0.0f, 1.0f);
-            get => _dirSeparation;
-        }
-        public float _dirSeparation;
+        Vector2 adaptOutput;
 
         [Property("Area Scale"), DefaultPropertyValue(0.5f), ToolTip
         (
@@ -197,22 +203,22 @@ namespace Saturn
 
                 if (rInner > 0f) RF();
                 else {
-                    ringOutput = startOutput;
+                    clampOutput = startOutput;
                 }
                 
                 AEMA();
 
-                report.Position = new Vector2(aemaOutput.X / xMod, aemaOutput.Y);
+                report.Position = new Vector2(adaptOutput.X / xMod, adaptOutput.Y);
                 dirOfOutput = (report.Position - lastOutputPos);
                 lastOutputPos = report.Position;
 
-                if (!vec2IsFinite(report.Position + startOutput + ringOutput + aemaOutput + acOutput)) {
+                if (!vec2IsFinite(report.Position + startOutput + clampOutput + smoothOutput + adaptOutput + outputInternal)) {
                     emergency = 5;
                 }
 
                 if (emergency > 0) {
                     ERefresh();
-                    report.Position = new Vector2(aemaOutput.X / xMod, aemaOutput.Y);
+                    report.Position = new Vector2(adaptOutput.X / xMod, adaptOutput.Y);
                 }
 
             }
@@ -234,13 +240,7 @@ namespace Saturn
             InsertAtFirst(accel, vel[0] - vel[1]);
             InsertAtFirst(pointaccel, ddir[0].Length());
 
-            if (emergency == 0) {
-                InsertAtFirst(pathdiffs, PathDiff(new Vector2(pos[1].X / xMod, pos[1].Y), new Vector2(pos[0].X / xMod, pos[0].Y), lastOutputPos));
-            }
-
             DAC();
-
-            dscalebonus = Smoothstep(pathdiffs[0].X, 0, 25) * Smoothstep(accel[0], 0, -25);
 
             if (dir[0] == pos[0]) {
                 emergency = 5;
@@ -261,50 +261,48 @@ namespace Saturn
         }
 
         void RF() {
-            ringInputPos1 = ringInputPos0;
-            ringInputPos0 = startOutput;
-            ringInputDir = ringInputPos0 - ringInputPos1;
-            Vector2 dist = startOutput - iRingPos0;
-            iRingPos1 = iRingPos0;
-            iRingPos0 += Math.Max(0, dist.Length() - (rInner)) * Default(Vector2.Normalize(dist), Vector2.Zero);
-            ringDir = iRingPos0 - iRingPos1;
-            ringOutput += ringDir;
-            if (ringDir.Length() > 0 || dist.Length() > rInner || accel[0] < -10 * areaScale || vel[0] > 10 * rInner) {
-                ringOutput = Vector2.Lerp(ringOutput, startOutput, Smoothstep(ringDir.Length(), -0.01f, rInner));
-                ringOutput = Vector2.Lerp(ringOutput, startOutput, Smoothstep(accel[0], -10 * areaScale, -150 * areaScale));
+            Vector2 dist = startOutput - clampHold;
+            float distLength = dist.Length();
+            Vector2 ringDir = Math.Max(0, distLength - (rInner)) * Default(Vector2.Normalize(dist), Vector2.Zero);
+            float ringDirLength = ringDir.Length();
+            clampHold += ringDir;
+            clampOutput += ringDir;
+            if (ringDirLength > 0 || distLength > rInner || accel[0] < -10 * areaScale || vel[0] > 10 * rInner) {
+                clampOutput = Vector2.Lerp(clampOutput, startOutput, UAdjust(Smoothstep(ringDirLength, -0.01f, rInner), 0.3f));
+                clampOutput = Vector2.Lerp(clampOutput, startOutput, UAdjust(Smoothstep(accel[0], -10 * areaScale, -150 * areaScale), 0.3f));
             }
         }
 
         void AEMA() {
-            Vector2 dist = ringOutput - acHold;
-            lastAcHold = acHold;
-            acDir = SFunction(dist.Length()) * Default(Vector2.Normalize(dist), Vector2.Zero);
-            acHold += acDir;
-            acOutput = acHold;
-            if (dirSeparation > 0) {
-                float sepScale = Smoothstep(dist.Length(), -0.01f, moddist);
-                sepScale *= sepScale;
-                sepScale = MathF.Pow(sepScale, 1 / (1 + Smoothstep(accel[0], 0, -50 * areaScale)));
-                acOutput = Vector2.Lerp(acHold, Vector2.Lerp(acHold, ringOutput, dirSeparation), sepScale * stockWeight);
-            }
+            Vector2 dist = clampOutput - smoothHold;
+            float distLength = dist.Length();
+            float mLength = DSFunction(distLength);
+            float wcon = stockWeight * Default(mLength / distLength, 0);
+            smoothHold += wcon * dist;
+            smoothOutput = smoothHold;
+            if (sepMult > 0 && mLength > 0) {
+                sepScale = Smoothstep(distLength, -0.01f, smoothDist * sepMult);
+            }       
+            smoothOutput = Vector2.Lerp(smoothHold, Vector2.Lerp(smoothHold, clampOutput, stockWeight), sepScale);
+            
 
             float mod4 = 0;
             if (aResponse > 0f) {
-                float aDist = Vector2.Distance(acOutput, aemaOutput);
+                float aDist = Vector2.Distance(smoothOutput, adaptOutput);
                 mod4 = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * MathF.Pow(Smoothstep(aDist, 2500 * aResponse, (500 * aResponse) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 25 * areaScale), 3.0f) * DotNorm(ddir[0], dir[0], 0);
             }
-            float weight = Math.Clamp(1 - mod4, 0, stockWeight);
-            aemaOutput = Vector2.Lerp(aemaOutput, acOutput, Math.Min(1, weight));
+            float weight = Math.Clamp(1 - mod4, 0, 1);
+            adaptOutput = Vector2.Lerp(adaptOutput, smoothOutput, weight);
         }
 
-        float SFunction(float dist) {
-            if (dist >= moddist) return dist - halfmoddist;
-            float x = (dist / moddist);
-            return x * x * halfmoddist;
+        float DSFunction(float dist) {
+            if (dist >= smoothDist) return dist - halfSmoothDist;
+            float x = (dist / smoothDist);
+            return x * x * halfSmoothDist;
         }
 
         void Initialize() {
-            halfmoddist = moddist * 0.5f;
+            halfSmoothDist = smoothDist * 0.5f;
             adjDacOuter = Math.Max(dacOuter, dacInner + 0.01f);
             correctWeight = startCorrectWeight;
             if (dacInner + dacOuter == 0f) {
@@ -314,40 +312,32 @@ namespace Saturn
         
         void ERefresh() {
             startOutput = pos[0];
-            ringInputPos1 = pos[0];
-            ringInputPos0 = pos[0];
-            iRingPos1 = pos[0];
-            iRingPos0 = pos[0];
-            ringOutput = pos[0];
-            lastAcHold = pos[0];
-            acHold = pos[0];
-            acOutput = pos[0];
-            aemaOutput = pos[0];
+            clampHold = pos[0];
+            clampOutput = pos[0];
+            smoothHold = pos[0];
+            smoothOutput = pos[0];
+            adaptOutput = pos[0];
+            outputInternal = pos[0];
         }
 
         const int HMAX = 4;
 
         Vector2[] pos = new Vector2[HMAX];
         Vector2[] dir = new Vector2[HMAX];
-        Vector2[] stdir = new Vector2[HMAX];
         Vector2[] ddir = new Vector2[HMAX];
-        Vector2[] smpos = new Vector2[HMAX];
         float[] vel = new float[HMAX];
         float[] accel = new float[HMAX];
         float[] jerk = new float[HMAX];
         float[] pointaccel = new float[HMAX];
+        uint[] pressure = new uint[HMAX];
 
-        Vector2[] pathdiffs = new Vector2[HMAX];
+        float sepScale;
         
-        Vector2 startOutput;
-        Vector2 ringInputPos0, ringInputPos1, ringInputDir, iRingPos0, iRingPos1, ringDir, ringOutput;
-        Vector2 acHold, lastAcHold, acDir, acOutput, aemaOutput;
+        Vector2 startOutput, outputInternal;
         Vector2 lastOutputPos, dirOfOutput;
         float reportTime;
-        float adjdWeight, adjDacOuter;
+        float adjdWeight;
         float correctWeight;
-        float dscalebonus;
-        float halfmoddist;
         bool init = false;
         int emergency;
         
