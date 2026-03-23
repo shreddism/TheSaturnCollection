@@ -4,17 +4,9 @@ A set of filters which is planned to grow to include the current multifilter for
 
 Formatting may be non-final.
 
-### Most Recent Update + Known Issues + Fix Status
+### Most Recent Update
 
-0.7.0 - Slight behavior changes, edge case fixes, removed a nonfunctional setting.
-
-There's an issue with aspect ratio compensation that makes the cursor act odd when X Modifier is not set to 1. If used normally, as in being above 1, there's not much to be actively worried about; it's just slight underaim and latency. It shouldn't be set below 1 in 0.7.0.
-
-Both interpolation methods have a barely noticeable velocity racket when Wire is enabled because of a time compensation error.
-
-Due to an oversight, setting stock weight to 1, accel response aggressiveness to 0, AND *additional antichatter* to 0 (all three exact) just makes the filter not work. There's no good reason in existence to do this, though.
-
-If you are reading this right now, 0.9.0 is on a branch waiting to be merged. It fixes these issues among making a whole lot of improvements. The readme is currently fit to this version.
+0.9.0 - Sweeping improvements, too many to list. Added an output mode with realtime bindable area changing. This works on my tablet (PTK-470) but not sure about others.
 
 ## Things You Should Probably Know
 
@@ -42,7 +34,7 @@ You should expect any non-interpolating filter to add almost nothing to frame mi
 
 ### Using Other Filters
 
-In most cases, the multifilter should be the only non-transform cursor-modifying filter enabled.
+In most cases, the multifilter should be the only non-transform cursor-modifying filter enabled. If using interpolation, it's ill-advised to use another interpolator.
 
 This means something like "Hover Distance Limiter" is completely fine, because it doesn't modify a cursor position.
 In fact, a lot of issues when taking the pen away from the tablet on certain tablets (Wacom PTK-x70) when using certain filters are fixed by using "Hover Distance Limiter" and leaving everything to default except checking the "Use Near Proximity Cutoff" setting.
@@ -108,7 +100,7 @@ In an interpolator, "ConsumeState" is called on tablet report, while "UpdateStat
 Update is called at the frequency while it is called at the report rate asynchronously. This leads to big differences in the time between updates.
 For ANYTHING that comes after this, this becomes a problem ranging from nothing to large.
 For interpolation, time is used anyway, so it's fine. For any sort of smoothing, without warning the smoothing, you're usually going to be covering the same exact distance in 0.1 milliseconds as you do in 1. Velocity racket may occur.
-This is managed to the point that it isn't noticeable through the way smoothing works as well as time compensation.
+In any case, this is managed to the point that it isn't noticeable through the way smoothing works as well as time compensation.
 
 #### Expected Milliseconds Per Report Override
 Interpolation uses timing averages of inconsistent integer millisecond report times to generally know what to do. I thought it would be reassuring to add a hard override for those who know their tablet's average. Doesn't take effect at 0.
@@ -141,7 +133,7 @@ EMA weight is how much the output goes from itself to the input, so 1 means noth
 This is a bit of a hybrid system that achieves expected behavior in most cases.
 
 #### Seperated Threshold Mult
-Smoothed Antichatter sets a base value for how eager the output cursor is to go to the input position when moving fast.
+Smoothed Antichatter sets a base value for how eager the output cursor is to go to the input position when moving fast. This multiplies that value.
 
 #### Accel Response Aggressiveness
 Explained in the tooltip.
@@ -150,14 +142,12 @@ Explained in the tooltip.
 Self explanatory. Full area PTK-470 can work with 1. Full area CTL-472 can work with 0.5.
 
 #### X Modifier
-This setting is broken on 0.7.0!
-
 Multiplies the X values that the internals of the filter work on and divides outputs by the value. Makes the entire filter screen-space (if done right)! Example: 2560x1440 display (16/9) and 90x60 area (3/2) makes (16/9) / (3/2), which appears to be 1.185185 repeating. This value would be used.
 
 # Custom Reset Absolute Mode
 You may need to apply and save multiple times for settings to apply properly.
 
-Multiple binding options are available to move your area. These are pretty much self explanatory and pretty much anything can be done with these abilities.
+Multiple options are available to move your area. These are pretty much self explanatory and pretty much anything can be done with a combination of these.
 
 ## Reset Modes
 
@@ -168,7 +158,7 @@ This effectively puts the cursor to the center of the display setting's area.
 These internally do the same thing, but dragging holds the reset while fake relative mode just triggers it.
 
 #### Set Both Centers To Posiiton
-This sets the center of the display area's setting. which changes where setting the tablet area's center to position will put the cursor.
+This sets the center of the display area's setting. which changes where setting the tablet area's center to position will put the cursor. This also changes behavior if using an extra transform like Circular Area.
 
 #### Reset To Stock Settings
 Self-explanatory. Might need multiple applies/saves to function.
