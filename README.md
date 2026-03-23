@@ -14,9 +14,9 @@ Both interpolation methods have a barely noticeable velocity racket when Wire is
 
 Due to an oversight, setting stock weight to 1, accel response aggressiveness to 0, AND *additional antichatter* to 0 (all three exact) just makes the filter not work. There's no good reason in existence to do this, though.
 
-I have to apologize as version 0.8.2, which fixes these, won't appear in the main repository as overhaul progress had picked up before it was merged and it wasn't worth bothering with. It is still on this branch that can be accessed with Plugin Manager > File > Use alternate source...
+If you are reading this right now, the readme is being updated to fit with version 0.9.0 at the current moment! It is on a branch waiting to be merged accessible through Plugin Manager > File > Use alternate source...
 
- ![](TheSaturnCollection/image/tsc080.png)
+![](TheSaturnCollection/image/tsc090.png)
 
 ## Things You Should Probably Know
 
@@ -78,6 +78,10 @@ Based on Prediction Ratio, the point used for interpolation will go from the lat
 At 0.0 this step is just foregone entirely. At 0.5 the point lands halfway between the latest reverse-smoothed position and the Kalman filter's point. At 1 only the Kalman filter's point is used.
 The point is fed into the 3 points to be used in interpolation.
 
+#### Wire - Filter Mode
+Wiring is addressed in a section below. The filter mode dictates what is put through the filters: the points to be interpolated between or the interpolation's output.
+Point filtering doesn't have to worry about time compensation in smoothing; it just runs at the report rate.
+
 ### Velocity Interpolation
 
 Just as another heads-up, this filter's inaccuracy scales very strongly with tablet noise/lower report rate.
@@ -105,8 +109,8 @@ Decel Adjustment is more straightforward; it ensures no bad overshoot by making 
 In an interpolator, "ConsumeState" is called on tablet report, while "UpdateState" is called strictly at the set frequency. Wiring ConsumeState to UpdateState increases frequency by the tablet's report rate, but weirdly.
 Update is called at the frequency while it is called at the report rate asynchronously. This leads to big differences in the time between updates.
 For ANYTHING that comes after this, this becomes a problem ranging from nothing to large.
-For interpolation, time is used anyway, so it's fine. For any sort of iteration of smoothing, without warning the smoothing, you're usually going to be covering the same exact distance in 0.1 milliseconds as you do in 1. Velocity racket may occur.
-There are watches and modifiers in place to [mostly fix](https://github.com/shreddism/TheSaturnCollection/blob/d4ea5c068d202ce4548b595f9c9a2a8a12c0224a/TheSaturnCollection/Mposition.cs#L428) this.
+For interpolation, time is used anyway, so it's fine. For any sort of smoothing, without warning the smoothing, you're usually going to be covering the same exact distance in 0.1 milliseconds as you do in 1. Velocity racket may occur.
+This is managed to the point that it isn't noticeable through the way smoothing works as well as time compensation.
 
 #### Expected Milliseconds Per Report Override
 Interpolation uses timing averages of inconsistent integer millisecond report times to generally know what to do. I thought it would be reassuring to add a hard override for those who know their tablet's average. Doesn't take effect at 0.
@@ -127,47 +131,32 @@ Support for uber-high frequencies should be decent.
 Follow [these instructions](https://github.com/X9VoiD/VoiDPlugins/wiki/Reconstructor#optimal-configuration).
 
 #### Directional Antichatter
-Should be explained in the tooltip.
-
-#### Stock EMA Weight
-Self explanatory. Runs at update, but we have a new position every update so it's not an issue unlike Hawku/Devocub. At a super low weight with wire enabled, velocity racket occurs. This may be overhauled in the future in favor of fully using a Radial Follow-like
-distance-clamped antichatter instead of a Devocub-like distance-weight antichatter, but its drawbacks have mostly been stomped out, so it became something to be included in an overhaul.
-
-#### Accel Response Aggressiveness
-Explained in the tooltip. Not flushed out very well, but that's being saved for a potential internal reordering in the next version.
+Explained in the tooltip.
 
 #### Inner Radius
 Self-explanatory. Always directionally separated. This uses a Radial Follow-like calculation.
 
-#### Additional Antichatter and Antichatter Power
-This likely shouldn't go much higher than the default in favor of increasing Inner Radius instead. If you drag, this can be reduced greatly.
-Antichatter Power should not go too high because of potential velocity racket. This uses distance-weight calculation, similar to Devocub, which would incur moderate velocity racketing if not for fixes/changes.
+#### Stock EMA Weight
+EMA weight is how much the output goes from itself to the input, so 1 means nothing. Time is taken into account when wiring, so no issue.
 
-#### Directional Separation
-Antichatter uses a little trick where the output position is separated from calculation, allowing underaim to be completely taken out. This controls how aggressively it applies to Additional Antichatter.
-This should probably always be 1 for multiple reasons, an important one being that it mostly fixes the awful "hook" effect on perpendicular movements.
+#### Smoothed Antichatter
+This is a bit of a hybrid system that achieves expected behavior in most cases.
+
+#### Seperated Threshold Mult
+Smoothed Antichatter sets a base value for how eager the output cursor is to go to the input position when moving fast.
+
+#### Accel Response Aggressiveness
+Explained in the tooltip.
 
 #### Area Scale
 Self explanatory. Full area PTK-470 can work with 1. Full area CTL-472 can work with 0.5.
 
 #### X Modifier
-This setting is broken on 0.7.0! The fix is awaiting being merged in 0.8.2.
+This setting is broken on 0.7.0!
 
 Multiplies the X values that the internals of the filter work on and divides outputs by the value. Makes the entire filter screen-space (if done right)! Example: 2560x1440 display (16/9) and 90x60 area (3/2) makes (16/9) / (3/2), which appears to be 1.185185 repeating. This value would be used.
 
-# Pixel Grid
-The effect is self-explanatory, but it should be made sure that this is the last Post-Transform filter, going after Circular Area and Radial Follow (Screen Space).
+# Custom Reset Absolute Mode
+You may need to apply and save multiple times for settings to apply properly.
 
-To change ordering or if you are unsure:
-
-- Go to File > Save settings as... > Save the file
-
-- Open the file. If you cannot, install/use Visual Studio Code.
-
-- Find the brackets enclosing Saturn.PixelGrid and its settings, and cut+paste them to the bottom of the Filters section. Fix the commas.
-
-- It should now look like this.
-
- ![](TheSaturnCollection/image/fixedsettingsfile.png)
-
-- Save the file, then go to File > Load settings > load the file, see if it works, then save.
+Multiple binding options are available to move your area. These are pretty much self explanatory and pretty much anything can be done with these abilities.
