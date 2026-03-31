@@ -1,5 +1,7 @@
 # The Saturn Collection [![Total Download Count](https://img.shields.io/github/downloads/shreddism/TheSaturnCollection/total.svg)](https://github.com/shreddism/TheSaturnCollection/releases)
  
+Important: As far as I know, using anything here is banned on Akatsuki. If you don't know what that is, you'll be fine. I have yet to get confirmation on why exactly, but even though I may or may not agree with the exact reason if I knew it, I respect their final choice and you should too.
+
 A set of filters which is planned to grow to include the current multifilter for all different types of users, as well as more niche optional plugins.
 
 Formatting may be non-final.
