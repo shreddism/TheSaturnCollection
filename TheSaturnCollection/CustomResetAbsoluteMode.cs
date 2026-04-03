@@ -265,7 +265,7 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                         Input!.Position = saveInputPosition;
                         Output!.Position = saveOutputPosition;
                     }
-                    report.Position = lastPostTransformInput; 
+                    report.Position = lastOutput; 
                 }
                 if (tPixelGridFlag && outputCompleteIgnores == 0 && transformCompleteFlag) {
                     PostProcessingStatUpdate(report.Position);
@@ -276,10 +276,10 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                     if ((!tDynamicMode) || ((Vector2.Distance(checkPos, pos[0]) + (dir[0] + dir[1] + dir[2] + dir[3]).Length() >= 1 / tPixelGridMult) && (pxOutput != outputPos[0]))) {
                         checkPos = pos[0];
                         InsertAtFirst(outputPos, pxOutput);
-                    }
-
+                    }  
                     report.Position = outputPos[0];
                 }
+                lastOutput = report.Position;
             }
             
             reportIsFirstAfterConsume = false;
@@ -306,6 +306,7 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
     Vector2 dragOffset;
     static Vector2 lastPreTransformOutput;
     static Vector2 lastPostTransformInput;
+    static Vector2 lastOutput;
     Vector2 dragHold;
 
     int maxDrops;
