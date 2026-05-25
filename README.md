@@ -8,7 +8,7 @@ Important: The interpolating multifilters are banned on Akatsuki's relax mode be
 
 ### Most Recent Update
 
-0.9.0 - Sweeping improvements, too many to list. Added an output mode with realtime bindable area changing. This works on my tablet (PTK-470) but not sure about others.
+0.9.1 - Patch for PTK-x70 press/release handling.
 
 ## Things You Should Probably Know
 
