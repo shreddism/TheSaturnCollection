@@ -253,6 +253,21 @@ namespace Saturn
             }
             if (State is ITabletReport report)
             {
+                if ((hcToggle) && (report.Pressure == 0 && pressure[0] > 0) && (pos[0].Y == report.Position.Y)) {   // An extra report with identical position is thrown in. Don't process it.
+                    InsertAtFirst(pressure, report.Pressure);
+                    eflag = true;   
+                    emPos = outputInternal;
+                    emergency = 5;
+                    if (wire) {
+                        UpdateState();      
+                        return;
+                    }
+                    else {
+                        OnEmit();
+                        return;
+                    }
+                }
+
                 reportTime = (float)reportStopwatch.Restart().TotalMilliseconds;
                 if (reportTime < 25f && reportTime > 0.01f) {
                     if (msOverride == 0) {
@@ -428,9 +443,11 @@ namespace Saturn
                 dir[0] = Vector2.Zero;
                 eflag = false;
             }
-
-            if ((hcToggle) && ((pressure[0] > 0 && pressure[1] == 0) || (pressure[0] == 0 && pressure[1] > 0))) {
-                if (emergency == 0) eflag = true;
+            else if ((hcToggle) && (pressure[0] > 0 && pressure[1] == 0)) {
+                if (emergency == 0) {
+                    eflag = true;
+                }
+                emPos = outputInternal;
                 emergency = 5;
             }
 
