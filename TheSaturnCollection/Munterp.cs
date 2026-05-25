@@ -240,6 +240,9 @@ namespace Saturn
             InsertAtFirst(accel, vel[0] - vel[1]);
             InsertAtFirst(pointaccel, ddir[0].Length());
 
+            InsertAtFirst(pressure, report.Pressure);
+
+            Console.WriteLine(dir[0] + " " + pressure[0] + reportTime); //- ddir[1]);
             DAC();
 
             if (dir[0] == pos[0]) {

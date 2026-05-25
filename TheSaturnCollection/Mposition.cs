@@ -240,6 +240,22 @@ namespace Saturn
                     emergency = 5;
                     eflag = false;
                 }
+
+                if ((hcToggle) && (report.Pressure == 0 && pressure[0] > 0) && (pos[0].Y == report.Position.Y)) {   // An extra report with identical position is thrown in. Don't process it.
+                    InsertAtFirst(pressure, report.Pressure);
+                    eflag = true;   
+                    emPos = outputInternal;
+                    emergency = 5;
+                    if (wireFlag) {
+                        UpdateState();      
+                        return;
+                    }
+                    else {
+                        OnEmit();
+                        return;
+                    }
+                }
+
                 reportTime = (float)reportStopwatch.Restart().TotalMilliseconds;
                 consumeDelta = reportTime / 1000f;
                 if (reportTime < 25f && reportTime > 0.01f) {
@@ -287,9 +303,12 @@ namespace Saturn
                             AEMA();
                         }
                         float eTime = ((float)reportStopwatch.Elapsed.TotalSeconds * Frequency / reportMsAvg) * (expect);
-                        float scale = Math.Min((((float)(5 - emergency) + Math.Min(eTime, 1.0f)) * 0.2f), 1.0f);
+                        float scale = Math.Min((((float)(5 -  emergency) + Math.Min(eTime, 1.0f)) * 0.2f), 1.0f);
                         outputInternal = Vector2.Lerp(emPos, adaptOutput, scale); 
                         report.Position = new Vector2(outputInternal.X / xMod, outputInternal.Y);
+                        dirOfOutput = (report.Position - lastOutputPos) / updateTime;
+
+                        lastOutputPos = report.Position;
                     }
                     else { 
                         ERefresh();
@@ -390,9 +409,11 @@ namespace Saturn
                 dir[0] = Vector2.Zero;
                 eflag = false;
             }
-
-            else if ((hcToggle) && ((pressure[0] > 0 && pressure[1] == 0) || (pressure[0] == 0 && pressure[1] > 0))) {
-                if (emergency == 0) eflag = true;
+            else if ((hcToggle) && (pressure[0] > 0 && pressure[1] == 0)) {
+                if (emergency == 0) {
+                    eflag = true;
+                }
+                emPos = outputInternal;
                 emergency = 5;
             }
         }
