@@ -50,32 +50,28 @@ public abstract class OutputModeAware : IPositionedPipelineElement<IDeviceReport
     }
 
     public Vector2 GetMaxCoords() {
-        if (outputMode.Type == OutputType.absolute && absoluteOutputMode != null) {
+        if (outputMode.Type == OutputType.absolute && absoluteOutputMode != null) 
             return new Vector2(absoluteOutputMode.Tablet.Properties.Specifications.Digitizer.MaxX, absoluteOutputMode.Tablet.Properties.Specifications.Digitizer.MaxY);
-        }
-
-        if (outputMode.Type == OutputType.relative && relativeOutputMode != null) {
+        
+        if (outputMode.Type == OutputType.relative && relativeOutputMode != null) 
             return new Vector2(relativeOutputMode.Tablet.Properties.Specifications.Digitizer.MaxX, relativeOutputMode.Tablet.Properties.Specifications.Digitizer.MaxY);
-        }
-
+        
         TryResolveOutputMode();
         return default;
     }
 
     public Vector2 GetDisplayArea() {
-        if (outputMode.Type == OutputType.absolute && absoluteOutputMode != null) {
+        if (outputMode.Type == OutputType.absolute && absoluteOutputMode != null) 
             return new Vector2(absoluteOutputMode.Output.Width, absoluteOutputMode.Output.Height);
-        }
 
         TryResolveOutputMode();
         return default;
     }
 
     public Vector2 GetDisplayCenter() {
-        if (outputMode.Type == OutputType.absolute && absoluteOutputMode != null) {
+        if (outputMode.Type == OutputType.absolute && absoluteOutputMode != null)
             return absoluteOutputMode.Output.Position;
-        }
-
+            
         TryResolveOutputMode();
         return default;
     }

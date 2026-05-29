@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -9,8 +9,8 @@
     <ItemGroup>
     <PackageReference Include="MathNet.Filtering.Kalman" Version="0.7.0" />
     <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
-    <PackageReference Include="OpenTabletDriver.Plugin" Version="0.6.6.2" />
-    <PackageReference Include="OpenTabletDriver" Version="0.6.6.2" />
+    <PackageReference Include="OpenTabletDriver.Plugin" Version="0.6.7" />
+    <PackageReference Include="OpenTabletDriver" Version="0.6.7" />
   </ItemGroup>
   
 </Project>

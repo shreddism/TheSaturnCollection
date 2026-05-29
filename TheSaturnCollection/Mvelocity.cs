@@ -29,7 +29,8 @@ namespace Saturn
             "If on a Intuos Pro (200hz or 300hz), put this to 3.\n" +
             "At least try positional interpolation otherwise."
         )]
-        public float vtlimiter { 
+        public float vtlimiter 
+        { 
             set => _vtlimiter = Math.Clamp(value, 2.0f, 3.0f);
             get => _vtlimiter;
         }
@@ -60,7 +61,8 @@ namespace Saturn
             "Internal thresholds are used to prevent this from messing things up horribly.\n" +
             "If you are unsure, keep at 0."
         )]
-        public float dacInner { 
+        public float dacInner 
+        { 
             set => _dacInner = Math.Max(value, 0.0f);
             get => _dacInner;
         }
@@ -75,7 +77,8 @@ namespace Saturn
             "Internal thresholds are used to prevent this from messing things up horribly.\n" +
             "If you are unsure, keep at 0."
         )]
-        public float dacOuter { 
+        public float dacOuter 
+        { 
             set => _dacOuter = Math.Max(value, 0.0f);
             get => _dacOuter;
         }
@@ -101,7 +104,8 @@ namespace Saturn
             "A full deadzone for movement. Unit is in raw tablet data.\n" +
             "Directionally separated with smooth position transition to raw based on itself."
         )]
-        public float rInner { 
+        public float rInner 
+        { 
             set => _rInner = Math.Max(value, 0.0f);
             get => _rInner;
         }
@@ -117,7 +121,8 @@ namespace Saturn
             "Setting this too low may cause racket if wire is enabled. If you want this low, you won't miss wire.\n" +
             "The below options control adaptivity."
         )]
-        public float stockWeight { 
+        public float stockWeight 
+        { 
             set => _stockWeight = Math.Clamp(value, 0.001f, 1.0f);
             get => _stockWeight;
         }
@@ -130,7 +135,8 @@ namespace Saturn
             "Sets base behavior for distance smoothing. Unit is raw tablet data.\n" +
             "Goes to raw position based on the setting below."
         )]
-        public float smoothDist { 
+        public float smoothDist 
+        { 
             set => _smoothDist = Math.Max(value, 0.0f);
             get => _smoothDist;
         }
@@ -144,7 +150,8 @@ namespace Saturn
 
             "Lower values are more eager to send smoothed position to raw."
         )]
-        public float sepMult {
+        public float sepMult 
+        {
             set => _sepMult = Math.Clamp(value, 0.5f, 100000.0f);
             get => _sepMult;
         }
@@ -163,7 +170,8 @@ namespace Saturn
             "This could also apply to a PTH-x60 tablet, but this is untested.\n" +
             "General users - don't put above 0."
         )]
-        public float aResponse { 
+        public float aResponse 
+        { 
             set => _aResponse = Math.Max(value, 0.0f);
             get => _aResponse;
         }
@@ -175,7 +183,8 @@ namespace Saturn
             "You should know what you are doing if you change this from 0.\n" +
             "Wacom PTK-x70 - make this 3.302466 if using given pen, otherwise you are on your own."
         )]
-        public float msOverride { 
+        public float msOverride 
+        { 
             set => _msOverride = Math.Max(value, 0.0f);
             get => _msOverride;
         }
@@ -188,7 +197,8 @@ namespace Saturn
             "Multiplies every area-subjective threshold, mostly failsafes.\n" +
             "If you are unsure, see the wiki instructions."
         )]
-        public float areaScale { 
+        public float areaScale 
+        { 
             set => _areaScale = Math.Clamp(value, 0.01f, 5f);
             get => _areaScale;
         }
@@ -202,7 +212,8 @@ namespace Saturn
             "Divide display area ratio by tablet area ratio, then use that value.\n" +
             "If you are unsure, see the wiki instructions."
         )]
-        public float xMod { 
+        public float xMod 
+        { 
             set => _xMod = Math.Clamp(value, 0.01f, 100f);
             get => _xMod;
         }
@@ -224,7 +235,8 @@ namespace Saturn
             "May modify feel slightly on sharp acceleration.\n" +
             "If you are unsure, keep at 0."
         )]
-        public float dCorrect { 
+        public float dCorrect 
+        { 
             set => _dCorrect = Math.Clamp(value, 0.0f, 1.0f);
             get => _dCorrect;
         }
@@ -237,7 +249,8 @@ namespace Saturn
             "Higher = less chance of bad overshoot on deceleration.\n" +
             "If you are unsure, keep at 5."
         )]
-        public float tv2 { 
+        public float tv2 
+        { 
             set => _tv2 = Math.Max(value, 0.0f);
             get => _tv2;
         }
@@ -251,21 +264,17 @@ namespace Saturn
                 emergency = 5;
                 eflag = false;
             }
-            if (State is ITabletReport report)
-            {
+
+            if (State is ITabletReport report) {
                 if ((hcToggle) && (report.Pressure == 0 && pressure[0] > 0) && (pos[0].Y == report.Position.Y)) {   // An extra report with identical position is thrown in. Don't process it.
                     InsertAtFirst(pressure, report.Pressure);
                     eflag = true;   
                     emPos = outputInternal;
                     emergency = 5;
-                    if (wire) {
-                        UpdateState();      
-                        return;
-                    }
-                    else {
-                        OnEmit();
-                        return;
-                    }
+                    if (wire) 
+                        UpdateState();
+
+                    return;
                 }
 
                 reportTime = (float)reportStopwatch.Restart().TotalMilliseconds;
@@ -275,8 +284,9 @@ namespace Saturn
                         expectC = reportMsAvg / expect;
                         correctWeight = startCorrectWeight * expect * (msStandard / msOverride);
                     }
+
                     if (emergency > 0)
-                    emergency--;
+                        emergency--;
                 }
                 else {
                     emergency = 5;
@@ -285,18 +295,15 @@ namespace Saturn
 
                 moveOk = false;
                 consume = true;
-
                 StatUpdate(report);
-                
                 bottom = -1 * Math.Max(alpha0 - vtlimiter, 0);
                 if (top > 1f || bottom > 1f) {
                     top = 0;
                     bottom = 0;
                 }
 
-                if (wire) {
+                if (wire)
                     UpdateState();
-                }
             }
             else {
                 OnEmit();
@@ -308,17 +315,18 @@ namespace Saturn
             if (State is ITabletReport report && PenIsInRange())
             {
                 updateTime = (float)updateStopwatch.Restart().TotalMilliseconds;
-
                 if (emergency > 0) {
                     report.Pressure = pressure[0];
-                    
                     if (eflag) {
                         startOutput = pos[0];
-                        if (rInner > 0f) RF();
+                        if (rInner > 0f) {
+                            RF();
+                        }
                         else {
                             moveOk = true;
                             clampOutput = startOutput;      
                         }
+                        
                         AEMA();
                         float eTime = ((float)reportStopwatch.Elapsed.TotalSeconds * Frequency / reportMsAvg) * (expect);
                         float scale = Math.Min((((float)(5 - emergency) + Math.Min(eTime, 1.0f)) * 0.2f), 1.0f);
@@ -331,6 +339,7 @@ namespace Saturn
                         report.Position = new Vector2(adaptOutput.X / xMod, adaptOutput.Y);
                         lastOutputPos = report.Position;
                     }
+
                     top = 0;
                     OnEmit();
                     return;
@@ -341,31 +350,29 @@ namespace Saturn
                         top = (preserveTime - 1);            
                         bottom = 0;
                     }
-                    else top = 0;
+                    else {
+                        top = 0;
+                    }
                 } 
 
                 cTime = ((float)reportStopwatch.Elapsed.TotalSeconds * Frequency / reportMsAvg) * (expect);
                 alpha0 = ((1 - top) * cTime) + top;
                 top *= 0.99f;
-
                 preserveTime = alpha0 + (expect / reportMsAvg);
                 alpha0 += (vtlimiter - 1);
-
                 if (hcToggle && pps == 3)
-                alpha0 = Math.Clamp(alpha0, (vtlimiter - 1), 4);
-                else {
+                    alpha0 = Math.Clamp(alpha0, (vtlimiter - 1), 4);
+                else
                     alpha0 = Math.Clamp(alpha0, (vtlimiter - 1), pps);
-                }
 
                 trDir = Trajectory(stdir[0], stdir[1], stdir[2], alpha0);
                 sdirt1 = Trajectory(a1stdir[0], a1stdir[1], a1stdir[2], alpha0 + 0.5f);
                 trDir = Vector2.Lerp(trDir, sdirt1, pps4);
-
                 useDir = WireMultAdjust(trDir / expectC, expect, updateTime, wire);
-
                 startOutput += useDir;
-
-                if (rInner > 0f) RF();
+                if (rInner > 0f) {
+                    RF();
+                }
                 else {
                     moveOk = true;
                     clampOutput = startOutput;
@@ -387,66 +394,55 @@ namespace Saturn
                 } 
 
                 AEMA();
-
                 outputInternal = adaptOutput;
-
                 emPos = outputInternal;
-
                 report.Position = new Vector2(outputInternal.X / xMod, outputInternal.Y);
                 dirOfOutput = (report.Position - lastOutputPos) / updateTime;
                 lastOutputPos = report.Position;
-
                 report.Pressure = pressure[0];
-
                 if (!vec2IsFinite(report.Position + startOutput + clampOutput + smoothOutput + adaptOutput + outputInternal)) {
                     ERefresh();
                     emPos = pos[0];
                     InsertAtFirst(smpos, pos[0]);
-
                     eflag = false;
                     emergency = 5;
                     report.Position = new Vector2(adaptOutput.X / xMod, adaptOutput.Y);
                 }
-                
+    
                 consume = false;
-
                 OnEmit();
             }
         }
         
-        void StatUpdate(ITabletReport report) {
+        void StatUpdate(ITabletReport report)
+        {
             InsertAtFirst(pos, report.Position);
             pos[0].X *= xMod;
-
             Vector2 smoothed = pos[0];
             if (reverseSmoothing < 1f && reverseSmoothing > 0f) 
                 smoothed = pos[1] + (pos[0] - pos[1]) / reverseSmoothing;
+                
             InsertAtFirst(smpos, smoothed);
-
             InsertAtFirst(dir, smpos[0] - smpos[1]);
             InsertAtFirst(vel, dir[0].Length());
             InsertAtFirst(ddir, dir[0] - dir[1]);
             InsertAtFirst(accel, vel[0] - vel[1]);
             InsertAtFirst(jerk, accel[0] - accel[1]);
             InsertAtFirst(pointaccel, ddir[0].Length());
-
             InsertAtFirst(pressure, report.Pressure);
-
-            if (emergency == 0) {
+            if (emergency == 0) 
                 InsertAtFirst(pathdiffs, PathDiff(new Vector2(pos[1].X / xMod, pos[1].Y), new Vector2(pos[0].X / xMod, pos[0].Y), lastOutputPos));
-            }
-
+                
             DAC();
-
             if (dir[0] == pos[0]) {
                 emergency = 5;
                 dir[0] = Vector2.Zero;
                 eflag = false;
             }
             else if ((hcToggle) && (pressure[0] > 0 && pressure[1] == 0)) {
-                if (emergency == 0) {
+                if (emergency == 0) 
                     eflag = true;
-                }
+
                 emPos = outputInternal;
                 emergency = 5;
             }
@@ -454,10 +450,8 @@ namespace Saturn
             dscale = Smoothstep(accel[0] - Math.Max(0, jerk[0]), -10 * areaScale, -200 * areaScale);
             dscalebonus = Smoothstep(pathdiffs[0].X, 0, 25) * Smoothstep(accel[0], 0, -25);
             vascale = Smoothstep(vel[0] + accel[0], 25 * areaScale, 100 * areaScale);
-
             float bonus = Smoothstep((accel[0] + jerk[0]), 10, 200);
             cmod1 = (1 - dCorrect) + (dCorrect) * (MathF.Pow(Smoothstep((accel[0] + jerk[0]), -200, -10), 2) + (2 * bonus - bonus * bonus));
-
             pps = Math.Min(Math.Min(stdir[0].Length(), stdir[1].Length()), stdir[2].Length());
             pps = Smoothstep(pps, 2, 20);
             pps2Dir = (stdir[0] + stdir[1]) - (stdir[2] + stdir[2]);
@@ -465,13 +459,12 @@ namespace Saturn
             pps3 = Smoothstep(Vector2.Distance(stdir[0], stdir[1]), dacInner, adjDacOuter);
             pps = 2 + (vtlimiter - 2) * Math.Min(Math.Min(pps, pps2), pps3);
             pps4 = Smoothstep(stdir[3].Length() - stdir[0].Length(), -15, -3) - Smoothstep(stdir[3].Length() - stdir[0].Length(), 3, 15);
-
-            if (hcToggle && pressure[0] == 0) {
+            if (hcToggle && pressure[0] == 0) 
                 pps = Math.Min(pps, 3 - Smoothstep(Vector2.Distance(ddir[0], ddir[1]), 70, 100));
-            }
         }
 
-        void DAC() {
+        void DAC() 
+        {
             if (dacInner + dacOuter > 0f) {
                 float vscale = Smoothstep(vel[0], 5, 10 + adjDacOuter);
                 float scale = MathF.Pow(Smoothstep(Math.Max(pointaccel[0], Vector2.Distance(stdir[0], dir[0])), Math.Max(0, vscale * dacInner) - 0.01f, (vscale * adjDacOuter)), 3);
@@ -486,7 +479,8 @@ namespace Saturn
             }
         }
 
-        void RF() {
+        void RF() 
+        {
             Vector2 dist = startOutput - clampHold;
             float distLength = dist.Length();
             Vector2 ringDir = Math.Max(0, distLength - (rInner)) * Default(Vector2.Normalize(dist), Vector2.Zero);
@@ -499,49 +493,48 @@ namespace Saturn
             }
         }
 
-        void AEMA() {
+        void AEMA() 
+        {
             Vector2 dist = clampOutput - smoothHold;
             float distLength = dist.Length();
-            float mLength = DSFunction(distLength);
+            float mLength = DSFunction(distLength, smoothDist, halfSmoothDist);
             float wcon = WireWeightAdjust(stockWeight * Default(mLength / distLength, 0), expect, updateTime, wire);
             smoothHold += wcon * dist;
             smoothOutput = smoothHold;
             if (sepMult > 0 && mLength > 0) {
-                if (!(wire) || updateTime / expect > 0.99f) {
+                if (!(wire) || updateTime / expect > 0.99f) 
                     sepScale = Smoothstep(distLength, -0.01f, smoothDist * sepMult);
-                }       
+                       
                 smoothOutput = Vector2.Lerp(smoothHold, Vector2.Lerp(smoothHold, clampOutput, stockWeight), sepScale);
             }
 
-            float mod4 = 0;
+            float aMod = 0;
             if (aResponse > 0f) {
                 float aDist = Vector2.Distance(smoothOutput, adaptOutput);
-                mod4 = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * MathF.Pow(Smoothstep(aDist, 2500 * aResponse, (500 * aResponse) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 25 * areaScale), 3.0f) * DotNorm(ddir[0], dir[0], 0);
+                aMod = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * MathF.Pow(Smoothstep(aDist, 2500 * aResponse, (500 * aResponse) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 25 * areaScale), 3.0f) * DotNorm(ddir[0], dir[0], 0);
             }
-            float weight = Math.Clamp(1 - mod4, 0, 1);
+            
+            float weight = Math.Clamp(1 - aMod, 0, 1);
             adaptOutput = Vector2.Lerp(adaptOutput, smoothOutput, WireWeightAdjust(weight, expect, updateTime, wire));
         }
 
-        float DSFunction(float dist) {
-            if (dist >= smoothDist) return dist - halfSmoothDist;
-            float x = (dist / smoothDist);
-            return x * x * halfSmoothDist;
-        }
-
-        void Initialize() {
+        void Initialize() 
+        {
             halfSmoothDist = smoothDist * 0.5f;
             if (msOverride > 0) {
                 reportMsAvg = msOverride;
                 expectC = reportMsAvg / expect;
                 correctWeight = startCorrectWeight * expect * (msStandard / msOverride);
-                if (dacInner + dacOuter == 0f) {
+                if (dacInner + dacOuter == 0f) 
                     adjdWeight = correctWeight;
-                }
+                
             }
+
             adjDacOuter = Math.Max(dacOuter, dacInner + 0.01f);
         }
 
-        void ERefresh() {
+        void ERefresh() 
+        {
             startOutput = pos[0];
             clampHold = pos[0];
             clampOutput = pos[0];

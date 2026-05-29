@@ -7,7 +7,6 @@ namespace Saturn {
         public static Vector2 WireMultAdjust(Vector2 a, float be, float br, bool w) => w ? a * Math.Clamp(br / be, 0, 1.5f) : a;
         public static Vector2 MinLength(Vector2 a, Vector2 b) => a.LengthSquared() <= b.LengthSquared() ? a : b;
         public static Vector2 MaxLength(Vector2 a, Vector2 b) => a.LengthSquared() >= b.LengthSquared() ? a : b;
-
         public static float Default(float a, float b) => float.IsFinite(a) ? a : b;
         public static float WireMultAdjust(float a, float be, float br, bool w) => w ? a * Math.Clamp(br / be, 0, 1.5f) : a;
         public static float WirePowAdjust(float a, float be, float br, bool w) => w ? MathF.Pow(a, Math.Max(be / br, 0.66f)) : a;
@@ -16,12 +15,23 @@ namespace Saturn {
         public static float DotNorm(Vector2 a, Vector2 b, float x) => (a != Vector2.Zero && b != Vector2.Zero) ? Vector2.Dot(Vector2.Normalize(a), Vector2.Normalize(b)) : x;
 
         public static float XWA(float be, float br, bool b, float ce, float cr, bool c) {
-            if (b) return Math.Clamp(br / be, 0.0f, 1.5f);
-            if (c) return Default(cr / ce, 1.0f);
+            if (b) 
+                return Math.Clamp(br / be, 0.0f, 1.5f);
+            if (c) 
+                return Default(cr / ce, 1.0f);
             return 1.0f;
         }
 
         public static float UAdjust(float a, float b) => 1 - MathF.Pow(1 - a, b);
+
+        public static float DSFunction(float dist, float smoothDist, float halfSmoothDist) 
+        {
+            if (dist >= smoothDist) 
+                return dist - halfSmoothDist;
+
+            float x = (dist / smoothDist);
+            return x * x * halfSmoothDist;
+        }
         
         public static bool vec2IsFinite(Vector2 vec) => float.IsFinite(vec.X) & float.IsFinite(vec.Y);
 
