@@ -17,7 +17,6 @@ namespace Saturn
 
         public override PipelinePosition Position => PipelinePosition.PreTransform;
 
-        const int HMAX = 4;
 
         [Property("Prediction Ratio (Hover Over The Textbox)"), DefaultPropertyValue(0.0f), ToolTip
         (
@@ -26,8 +25,9 @@ namespace Saturn
 
             "Possible range: 0.0 - 1.0, default 0.0\n\n" +
 
-            "Same interpolation and prediction methods as Temporal Resampler.\n" +
-            "Higher RPS raw tablets with less noise get extremely low error on 1.0."
+            "Uses a Kalman filter that considers acceleration instead of just position and velocity.\n" +
+            "Because of this, it has far less error under movement than what is seen in Temporal Resampler.\n" +
+            "Beyond that, by default on certain tablets the filter's parameters are tuned for better accuracy."
         )]
         public float frameShift
         { 
@@ -35,8 +35,6 @@ namespace Saturn
             get => _frameShift;
         }
         public float _frameShift;
-        Vector2[] prpos = new Vector2[HMAX];
-        Vector2[] prdir = new Vector2[HMAX];
 
         [Property("Reverse EMA"), DefaultPropertyValue(1.0f), ToolTip
         (
@@ -52,7 +50,6 @@ namespace Saturn
             get => _reverseSmoothing;
         }
         public float _reverseSmoothing;
-        Vector2[] smpos = new Vector2[HMAX];
 
         [Property("Directional Antichatter Inner Threshold"), DefaultPropertyValue(0.0f), ToolTip
         (
@@ -85,9 +82,6 @@ namespace Saturn
             get => _dacOuter;
         }
         public float _dacOuter;
-        Vector2[] stdir = new Vector2[HMAX];
-        Vector2[] stpos = new Vector2[HMAX];
-        float adjDacOuter;
 
         [Property("Wire - Filter Mode"), PropertyValidated(nameof(wireModes)), DefaultPropertyValue("Wire - Point"), ToolTip
         (
@@ -106,10 +100,6 @@ namespace Saturn
             "Wire - Interp"
         }; 
         public string? _wireMode;
-        public int wireCode;
-        Vector2[] fipos = new Vector2[HMAX];
-        float updateTime;
-        bool wireFlag, pointFlag, wireAdjustFlag;
         private HPETDeltaStopwatch updateStopwatch = new HPETDeltaStopwatch();
 
         [Property("Inner Radius"), DefaultPropertyValue(25.0f), ToolTip
@@ -125,7 +115,6 @@ namespace Saturn
             get => _rInner;
         }
         public float _rInner;
-        Vector2 clampHold, clampOutput;
 
         [Property("Stock EMA Weight"), DefaultPropertyValue(1.0f), ToolTip
         (
@@ -154,8 +143,6 @@ namespace Saturn
             get => _smoothDist;
         }
         public float _smoothDist;
-        float halfSmoothDist;
-        Vector2 smoothHold;
 
         [Property("Separated Threshold Mult"), DefaultPropertyValue(1.0f), ToolTip
         (
@@ -169,7 +156,6 @@ namespace Saturn
             get => _sepMult;
         }
         public float _sepMult;
-        Vector2 smoothOutput;
 
         [Property("Accel Response Aggressiveness"), DefaultPropertyValue(0.0f), ToolTip
         (
@@ -189,7 +175,6 @@ namespace Saturn
             get => _aResponse;
         }
         public float _aResponse;
-        Vector2 adaptOutput;
 
         [Property("Expected Milliseconds Per Report Override"), DefaultPropertyValue(0.0f), ToolTip
         (
@@ -232,61 +217,35 @@ namespace Saturn
         }
         public float _xMod;
 
-        [BooleanProperty("Wacom PTK-x70 Series Toggle", ""), DefaultPropertyValue(false), ToolTip
+        [BooleanProperty("Tablet-Specific Tweaks", ""), DefaultPropertyValue(true), ToolTip
         (
-            "Enables behavioral tweaks that improve the experience on a Wacom PTK-x70 tablet, like not bugging out on press/lift.\n" +
-            "May be applicable on a PTH-x60 tablet, but this is untested."
+            "If applicable, will change certain behaviors for certain tablets.\n" +
+            "This inlcudes things like non-default dynamic Kalman filter parameters for improved accuracy and preventing bugs.\n" +
+            "Don't disable unless you have a good reason to."
         )]
-        public bool hcToggle { set; get; }
-        Vector2 emPos;
-        bool eflag;
+        public bool tabletToggle { set; get; }
+
+        InterpFilter? filter;
+
+        bool init;
 
         protected override void ConsumeState()
         {
             if (State is ITabletReport report) {  
+                perfStopwatch.Restart();
+
                 if (!init) {
-                    ResetValues(new Vector2(report.Position.X * xMod, report.Position.Y));
-                    Initialize();
-                    init = true;
-                    emergency = 3;
-                    eflag = false;
-                }
-
-                if ((hcToggle) && (report.Pressure == 0 && pressure[0] > 0) && (pos[0].Y == report.Position.Y)) {   // An extra report with identical position is thrown in. Don't process it.
-                    InsertAtFirst(pressure, report.Pressure);
-                    eflag = true;   
-                    emPos = outputInternal;
-                    emergency = 3;
-                    if (wireFlag) 
-                        UpdateState();
-
-                    return;
-                }
-                
-                reportTime = (float)reportStopwatch.Restart().TotalMilliseconds;
-                consumeDelta = reportTime / 1000f;
-                if (reportTime < 25f && reportTime > 0.01f) {
-                    if (msOverride == 0) {
-                        reportMsAvg += ((reportTime - reportMsAvg) * 0.1f);
-                        rpsAvg += (1f / (consumeDelta) - rpsAvg) * (1f - MathF.Exp(-2f * (consumeDelta)));
-                        secAvg = 1f / rpsAvg;
-                        msAvg = 1000f * secAvg;
-                        correctWeight = startCorrectWeight * expect * (msStandard / reportMsAvg);
+                    filter = new InterpFilter(this);
+                    if (filter != null) {
+                        filter!.Initialize(report);
+                        init = true;
                     }
-
-                    if (emergency > 0) 
-                        emergency--;  
                 }
-                else {
-                    emergency = 3;
-                    eflag = false;
-                    ResetValues(new Vector2(report.Position.X * xMod, report.Position.Y));
-                }
-
-                StatUpdate(report);
-                
-                if (wireFlag) 
+                else if (filter!.HandleConsume(report) == 1) {
                     UpdateState();
+                }
+                //Console.WriteLine(perfStopwatch.Restart().TotalNanoseconds); 
+
             }
             else {
                 OnEmit();
@@ -295,550 +254,17 @@ namespace Saturn
 
         protected override void UpdateState()
         {
-            if (State is ITabletReport report && PenIsInRange()) {    
-                updateTime = (float)updateStopwatch.Restart().TotalMilliseconds;
-
-                if (emergency > 0) {
-                    report.Pressure = pressure[0];
-                    if (eflag) {
-                        if (!pointFlag) {
-                            startOutput = pos[0];
-                            FilterPass();
-                        }
-                    
-                        float eTime = ((float)reportStopwatch.Elapsed.TotalSeconds * Frequency / reportMsAvg) * (expect);
-                        float scale = Math.Min((((float)(3 -  emergency) + Math.Min(eTime, 1.0f)) * 0.33f), 1.0f);
-                        outputInternal = Vector2.Lerp(emPos, adaptOutput, scale); 
-                        report.Position = new Vector2(outputInternal.X / xMod, outputInternal.Y);
-                        dirOfOutput = (report.Position - lastOutputPos) / updateTime;
-                        lastOutputPos = report.Position;
-                    }
-                    else { 
-                        ERefresh();
-                        emPos = pos[0];
-                        report.Position = new Vector2(adaptOutput.X / xMod, adaptOutput.Y);
-                        lastOutputPos = report.Position;
-                    }
-
-                    OnEmit();
-                    return;
-                } 
-
-                float t = 1 + (float)(runningStopwatch.Elapsed - latestReport).TotalSeconds * rpsAvg;
-                t = Math.Clamp(t, 0, 3);
-                if (pointFlag) {
-                    outputInternal = RTrajectory(t, fipos[2], fipos[1], fipos[0]);
-                }
-                else {
-                    startOutput = RTrajectory(t, stpos[2], stpos[1], stpos[0]);
-                    FilterPass();
-                    outputInternal = adaptOutput;
-                }
-
-                emPos = outputInternal;
-                report.Position = new Vector2(outputInternal.X / xMod, outputInternal.Y);
-                dirOfOutput = (report.Position - lastOutputPos) / updateTime;
-                lastOutputPos = report.Position;
-                report.Pressure = pressure[0];   
-                if (!vec2IsFinite(report.Position + startOutput + clampOutput + smoothOutput + adaptOutput + outputInternal)) {
-                    ERefresh();
-                    emPos = pos[0];
-                    eflag = false;
-                    emergency = 3;
-                    ResetValues(pos[0]);
-                    report.Position = new Vector2(outputInternal.X / xMod, outputInternal.Y);
-                }       
-
+            if (State is ITabletReport report && PenIsInRange() && init) {   
+                filter!.HandleUpdate(report);
                 OnEmit();
             }
         }
 
-        void StatUpdate(ITabletReport report)
-        {
-            InsertAtFirst(pos, report.Position);
-            pos[0].X *= xMod;
-            Vector2 smoothed = pos[0];
-            if (reverseSmoothing < 1f && reverseSmoothing > 0f)
-                smoothed = pos[1] + (pos[0] - pos[1]) / reverseSmoothing;
-
-            InsertAtFirst(smpos, smoothed);
-            InsertAtFirst(dir, smpos[0] - smpos[1]);
-            InsertAtFirst(vel, dir[0].Length());
-            InsertAtFirst(ddir, dir[0] - dir[1]);
-            InsertAtFirst(accel, vel[0] - vel[1]);
-            InsertAtFirst(jerk, accel[0] - accel[1]);
-            InsertAtFirst(pointaccel, ddir[0].Length());
-            InsertAtFirst(pressure, report.Pressure);
-            if (dir[0] == pos[0]) {
-                emergency = 3;
-                dir[0] = Vector2.Zero;
-                eflag = false;
-            }
-            else if ((hcToggle) && (pressure[0] > 0 && pressure[1] == 0)) {
-                if (emergency == 0) 
-                    eflag = true;
-
-                emPos = outputInternal;
-                emergency = 3;
-            }
-
-            Vector2 predict = smpos[0];
-            if (frameShift > 0f) {
-                if (kf != null) 
-                    predict = kf.Update(smpos[0], secAvg, (hcToggle && (emergency > 0)));
-                else 
-                    predict = pos[0];
-
-                predict += (smpos[0] - predict) * (1f - frameShift);
-            }
-
-            tOffset += secAvg - consumeDelta;
-            tOffset *= MathF.Exp(-5f * consumeDelta);
-            tOffset = Math.Clamp(tOffset, -secAvg, secAvg);
-            latestReport = runningStopwatch.Elapsed + TimeSpan.FromSeconds(tOffset);
-            InsertAtFirst(prpos, predict);
-            InsertAtFirst(prdir, prpos[0] - prpos[1]);
-            DAC();
-            if (pointFlag) {
-                startOutput = stpos[0];
-                FilterPass();
-                InsertAtFirst(fipos, adaptOutput);
-            }
-        }
-
-        void DAC() 
-        {
-            if (dacInner + dacOuter > 0f) {
-                float vscale = Smoothstep(vel[0], 5, 10 + adjDacOuter);
-                float scale = MathF.Pow(Smoothstep(Math.Max(pointaccel[0], Vector2.Distance(stdir[0], prdir[0])), Math.Max(0, vscale * dacInner) - 0.01f, (vscale * adjDacOuter)), 3);
-                adjdWeight = correctWeight * Math.Clamp(scale + 1 - vscale, 0.25f, 1f);
-                Vector2 stabilized = Vector2.Lerp(stdir[0], prdir[0], scale);  
-                InsertAtFirst(stdir, stabilized);
-                Vector2 stpoint = stpos[0] + stdir[0];
-                InsertAtFirst(stpos, stpoint);
-                stpos[0] = Vector2.Lerp(stpos[0], prpos[0], adjdWeight);
-            }
-            else {
-                InsertAtFirst(stdir, dir[0]);
-                InsertAtFirst(stpos, pos[0]);
-                stpos[0] = Vector2.Lerp(stpos[0], prpos[0], adjdWeight);
-            }
-        }
-
-        void RF() 
-        {
-            Vector2 dist = startOutput - clampHold;
-            float distLength = dist.Length();
-            Vector2 ringDir = Math.Max(0, distLength - (rInner)) * Default(Vector2.Normalize(dist), Vector2.Zero);
-            float ringDirLength = ringDir.Length();
-            clampHold += ringDir;
-            clampOutput += ringDir;
-            if (ringDirLength > 0 || distLength > rInner || accel[0] < -10 * areaScale || vel[0] > 10 * rInner) {
-                float xwa = XWA(expect, updateTime, wireAdjustFlag, reportMsAvg, expect, pointFlag);
-                clampOutput = Vector2.Lerp(clampOutput, startOutput, UAdjust(Smoothstep(ringDirLength, -0.01f, rInner), xwa));
-                clampOutput = Vector2.Lerp(clampOutput, startOutput, UAdjust(Smoothstep(accel[0], -10 * areaScale, -150 * areaScale), xwa));
-            }
-        }
-
-        void AEMA() 
-        {
-            Vector2 dist = clampOutput - smoothHold;
-            float distLength = dist.Length();
-            float mLength = DSFunction(distLength, smoothDist, halfSmoothDist);
-            float wcon = WireWeightAdjust(stockWeight * Default(mLength / distLength, 0), expect, updateTime, wireAdjustFlag);
-            smoothHold += wcon * dist;
-            smoothOutput = smoothHold;
-            if (sepMult > 0 && mLength > 0) {
-                if (!(wireFlag) || updateTime / expect > 0.99f) 
-                    sepScale = Smoothstep(distLength, -0.01f, smoothDist * sepMult);
-                
-                smoothOutput = Vector2.Lerp(smoothHold, Vector2.Lerp(smoothHold, clampOutput, stockWeight), sepScale);
-            }
-
-            float aMod = 0;
-            if (aResponse > 0f) {
-                float aDist = Vector2.Distance(smoothOutput, adaptOutput);
-                aMod = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * MathF.Pow(Smoothstep(aDist, 2500 * aResponse, (500 * aResponse) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 25 * areaScale), 3.0f) * DotNorm(ddir[0], dir[0], 0); // :)
-            }
-
-            float weight = Math.Clamp(1 - aMod, 0, 1);
-            adaptOutput = Vector2.Lerp(adaptOutput, smoothOutput, WireWeightAdjust(weight, expect, updateTime, wireAdjustFlag));
-        }
-
-        void FilterPass()
-        {
-            if (rInner > 0f)
-                RF(); 
-            else 
-                clampOutput = startOutput;
-
-            AEMA();
-        }
-
-        void Initialize() 
-        {
-            halfSmoothDist = smoothDist * 0.5f;
-            if (msOverride > 0) {
-                reportMsAvg = msOverride;
-                msAvg = msOverride;
-                correctWeight = startCorrectWeight * expect * (msStandard / msOverride);
-                secAvg = reportMsAvg / 1000f;
-                rpsAvg = 1f / secAvg;
-                if (dacInner + dacOuter == 0f) 
-                    adjdWeight = correctWeight * 0.01f;
-            }
-
-            adjDacOuter = Math.Max(dacOuter, dacInner + 0.01f);
-            wireCode = wireMode switch {
-                "Non-Wire - Point" => 1,
-                "Non-Wire - Interp" => 2,
-                "Wire - Point" => 3,
-                "Wire - Interp" => 4,
-                _ => 1
-            };
-            pointFlag = ((wireCode & 1) == 1);
-            wireFlag = (wireCode > 2);
-            wireAdjustFlag = (wireCode == 4);
-        }
-
-        void ResetValues(Vector2 p) 
-        {
-            kf = new KalmanVector2(4, p);
-            pos = Enumerable.Repeat(p, pos.Length).ToArray();
-            stpos = Enumerable.Repeat(p, stpos.Length).ToArray();
-            smpos = Enumerable.Repeat(p, smpos.Length).ToArray();
-            prpos = Enumerable.Repeat(p, prpos.Length).ToArray();
-            fipos = Enumerable.Repeat(p, fipos.Length).ToArray();
-            latestReport = runningStopwatch.Elapsed;
-            tOffset = 0;
-        }
-
-        void ERefresh() 
-        {
-            startOutput = pos[0];
-            clampHold = pos[0];
-            clampOutput = pos[0];
-            smoothHold = pos[0];
-            smoothOutput = pos[0];
-            adaptOutput = pos[0];
-            outputInternal = pos[0];
-        }
-
-        Vector2[] pos = new Vector2[HMAX];
-        Vector2[] dir = new Vector2[HMAX];
-        Vector2[] ddir = new Vector2[HMAX];
-        float[] vel = new float[HMAX];
-        float[] accel = new float[HMAX];
-        float[] jerk = new float[HMAX];
-        float[] pointaccel = new float[HMAX];
-        uint[] pressure = new uint[HMAX];
-        Vector2 startOutput, outputInternal;
-        Vector2 lastOutputPos, dirOfOutput;
-        float reportTime;
-        float adjdWeight;
-        float correctWeight;
-        bool init = false;
-        int emergency;
-        float reportMsAvg;
-        float sepScale;
-        const float startCorrectWeight = 0.01f;    
-        const float msStandard = 3.302466f;
-        float expect => 1000 / Frequency;
-        private HPETDeltaStopwatch reportStopwatch = new HPETDeltaStopwatch();
-
-        KalmanVector2? kf;
-        TimeSpan latestReport = TimeSpan.Zero;
-        float rpsAvg = 200f, tOffset;
-        float msAvg = 5;
-        float secAvg = 0.005f;
-        float consumeDelta;
-        HPETDeltaStopwatch runningStopwatch = new HPETDeltaStopwatch(true);
-
-        private static readonly int steps = 256;
-        private static readonly float dt = 1f / steps;
-        private float[] arcArr = new float[steps];
-        private float arcTar = 0;
-        private Vector2 _v1, _v2, _v3;
-        private int _floor;
-        Vector2 RTrajectory(float t, Vector2 v3, Vector2 v2, Vector2 v1)
-        {
-            var mid = 0.5f * (v1 + v3);
-            var accel = 2f * (mid - v2);
-            var vel = 2f * v2 - v3 - mid;
-
-            // if there is acceleration, then start spacing points evenly using integrals
-            if (Vector2.Dot(accel, accel) > 0.001f)
-            {
-                int floor = (int)Math.Floor(t);
-                var _vel = vel + accel * floor;
-
-                // if any of the inputs have changed, recalculate arcArr
-                if ((_floor != floor) || (_v1 != v1) || (_v2 != v2) || (_v3 != v3))
-                {
-                    _v1 = v1;
-                    _v2 = v2;
-                    _v3 = v3;
-                    _floor = floor;
-                    arcTar = 0;
-
-                    for (int _t = 0; _t < steps; _t++)
-                    {
-                        arcArr[_t] = arcTar;
-                        arcTar += (_vel + _t * dt * accel).Length();
-                    }
-                }
-
-                float _arcTar = arcTar * (t - floor);
-
-                for (int _t = 0; _t < steps; _t++)
-                {
-                    if (arcArr[_t] < _arcTar) continue;
-                    t = _t * dt + floor;
-                    break;
-                }
-            }
-
-            return v3 + t * vel + 0.5f * t * t * accel;
-        }
-    }
-
-    public class KalmanFilter
-    {
-        private readonly double[,] scale_const;
-        private readonly int states;
-        private double lastMeasuredPos;
-        private double lastMeasuredVel;
-
-        private Matrix x;
-        private Matrix P;
-        private Matrix Q;
-        private Matrix R;
-        private Matrix H;
-
-        public KalmanFilter(uint statesNumber, double initialPosition)
-        {
-            states = (int)statesNumber + 2;
-
-            scale_const = new double[states, states];
-            for (int i = 0; i < states; i++)
-            {
-                int fac_n = 1;
-                int fac_i = 0;
-                for (int j = i; j < states; j++)
-                {
-                    scale_const[i, j] = 1d / fac_n;
-                    fac_i++;
-                    fac_n *= fac_i;
-                }
-            }
-
-            lastMeasuredPos = initialPosition;
-            double[,] xArr = new double[states, 1];
-            xArr[0, 0] = initialPosition;
-
-            x = Matrix.Build.DenseOfArray(xArr);
-            P = Matrix.Build.DenseIdentity(states);
-            Q = Matrix.Build.DenseIdentity(states) * 1.0;
-            R = Matrix.Build.DenseDiagonal(3, 3, 0.00001);
-            H = Matrix.Build.DenseDiagonal(3, states, 1);
-        }
-
-        public double Update(double measuredPos, double dt, bool nonconfident)
-        {
-            double measuredVel = (measuredPos - lastMeasuredPos) / dt;
-            double measuredAccel = (measuredVel - lastMeasuredVel) / dt;
-            lastMeasuredPos = measuredPos;
-            lastMeasuredVel = measuredVel;
-
-            var z = Matrix.Build.DenseOfArray(new double[,] { { measuredPos }, { measuredVel }, { measuredAccel }});
-
-            double[,] Aarr = new double[states, states];
-            for (int i = 0; i < states; i++) 
-            {
-                double time_pow = 1;
-                for (int j = i; j < states; j++) 
-                {
-                    Aarr[i, j] = time_pow * scale_const[i, j];
-                    time_pow *= dt;
-                } 
-            }
-
-            /*
-                vvvvvvvvvvv
-            4 states should look like this
-            double[,] Aarr = new double[,] {
-                {          1,          dt^1/1!,    dt^2/2!,    dt^3/3!     },
-                {          0,          1,          dt^1/1!,    dt^2/2!     },
-                {          0,          0,          1,          dt^1/1!     },
-                {          0,          0,          0,          1           }
-            }
-            */
-
-            var A = Matrix.Build.DenseOfArray(Aarr);
-
-            x = A * x;
-            P = A * P * A.Transpose() + Q;
-
-            var useR = nonconfident ?
-                R * 10000000 :
-                R;
-
-            var S = H * P * H.Transpose() + useR;
-            var K = P * H.Transpose() * S.Inverse();
-
-            x = x + K * (z - H * x);
-            P = (Matrix.Build.DenseIdentity(states) - K * H) * P;
-
-            return (A * x)[0, 0];
-        }
-    }
-
-    public class KalmanVector2
-    {
-        private KalmanFilter xFilter;
-        private KalmanFilter yFilter;
-
-        public KalmanVector2(uint states, Vector2 initialPosition)
-        {
-            xFilter = new KalmanFilter(states, initialPosition.X);
-            yFilter = new KalmanFilter(states, initialPosition.Y);
-        }
-
-        public Vector2 Update(Vector2 measuredPosition, float dt, bool nonconfident)
-        {
-            float xState = (float)xFilter.Update(measuredPosition.X, dt, nonconfident);
-            float yState = (float)yFilter.Update(measuredPosition.Y, dt, nonconfident);
-            return new Vector2(xState, yState);
-        }
-    }
-
-    public class Matrix
-    {
-        internal readonly double[,] data;
-
-        public Matrix(double[,] data)
-        {
-            this.data = data;
-        }
-
-        public int Rows => data.GetLength(0);
-        public int Cols => data.GetLength(1);
-
-        public double this[int i, int j]
-        {
-            get => data[i, j];
-            set => data[i, j] = value;
-        }
-
-        public static Matrix operator +(Matrix a, Matrix b)
-        {
-            var result = new double[a.Rows, a.Cols];
-            for (int i = 0; i < a.Rows; i++)
-                for (int j = 0; j < a.Cols; j++)
-                    result[i, j] = a[i, j] + b[i, j];
-            return new Matrix(result);
-        }
-
-        public static Matrix operator -(Matrix a, Matrix b)
-        {
-            var result = new double[a.Rows, a.Cols];
-            for (int i = 0; i < a.Rows; i++)
-                for (int j = 0; j < a.Cols; j++)
-                    result[i, j] = a[i, j] - b[i, j];
-            return new Matrix(result);
-        }
-
-        public static Matrix operator *(Matrix a, Matrix b)
-        {
-            var result = new double[a.Rows, b.Cols];
-            for (int i = 0; i < a.Rows; i++)
-                for (int j = 0; j < b.Cols; j++)
-                    for (int k = 0; k < a.Cols; k++)
-                        result[i, j] += a[i, k] * b[k, j];
-            return new Matrix(result);
-        }
-
-        public static Matrix operator *(Matrix a, double scalar)
-        {
-            var result = new double[a.Rows, a.Cols];
-            for (int i = 0; i < a.Rows; i++)
-                for (int j = 0; j < a.Cols; j++)
-                    result[i, j] = a[i, j] * scalar;
-            return new Matrix(result);
-        }
-
-        public Matrix Transpose()
-        {
-            var result = new double[Cols, Rows];
-            for (int i = 0; i < Rows; i++)
-                for (int j = 0; j < Cols; j++)
-                    result[j, i] = data[i, j];
-            return new Matrix(result);
-        }
-
-        public Matrix Inverse()
-        {
-            if (Rows != Cols) throw new InvalidOperationException("Matrix must be square to invert.");
-
-            int n = Rows;
-            var result = new double[n, n];
-            var identity = Build.DenseIdentity(n).data;
-            var copy = (double[,])data.Clone();
-
-            for (int i = 0; i < n; i++)
-                for (int j = 0; j < n; j++)
-                    result[i, j] = identity[i, j];
-
-            for (int i = 0; i < n; i++)
-            {
-                double diag = copy[i, i];
-                if (diag == 0) throw new InvalidOperationException("Matrix is singular.");
-
-                for (int j = 0; j < n; j++)
-                {
-                    copy[i, j] /= diag;
-                    result[i, j] /= diag;
-                }
-
-                for (int k = 0; k < n; k++)
-                {
-                    if (k == i) continue;
-                    double factor = copy[k, i];
-                    for (int j = 0; j < n; j++)
-                    {
-                        copy[k, j] -= factor * copy[i, j];
-                        result[k, j] -= factor * result[i, j];
-                    }
-                }
-            }
-
-            return new Matrix(result);
-        }
-
-        public static class Build
-        {
-            public static Matrix DenseOfArray(double[,] data) => new Matrix(data);
-
-            public static Matrix DenseIdentity(int size)
-            {
-                var result = new double[size, size];
-                for (int i = 0; i < size; i++) result[i, i] = 1;
-                return new Matrix(result);
-            }
-
-            public static Matrix DenseDiagonal(int rows, int cols, Func<int, double> diagFunc)
-            {
-                var result = new double[rows, cols];
-                for (int i = 0; i < Math.Min(rows, cols); i++)
-                    result[i, i] = diagFunc(i);
-                return new Matrix(result);
-            }
-
-            public static Matrix DenseDiagonal(int rows, int cols, double value)
-            {
-                return DenseDiagonal(rows, cols, _ => value);
-            }
-        }
+        //public HPETDeltaStopwatch perfStopwatch = new HPETDeltaStopwatch();
+
+        [TabletReference]
+        public TabletReference TabletReference { set { name = value.Properties.Name; } }
+        public string name = string.Empty;
     }
 }
 

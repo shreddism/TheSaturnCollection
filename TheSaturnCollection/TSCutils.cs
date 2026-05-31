@@ -1,8 +1,13 @@
 using System;
 using System.Numerics;
 
-namespace Saturn {
-    public static class Utils {
+namespace Saturn 
+{
+    public static class Utils 
+    {   
+        public const int HMAX = 6;
+        public const int KALMAN_STATES = 2;
+    
         public static Vector2 Default(Vector2 a, Vector2 b) => vec2IsFinite(a) ? a : b;      
         public static Vector2 WireMultAdjust(Vector2 a, float be, float br, bool w) => w ? a * Math.Clamp(br / be, 0, 1.5f) : a;
         public static Vector2 MinLength(Vector2 a, Vector2 b) => a.LengthSquared() <= b.LengthSquared() ? a : b;
@@ -14,7 +19,8 @@ namespace Saturn {
         public static float DotNorm(Vector2 a, Vector2 b) => Vector2.Dot(Vector2.Normalize(a), Vector2.Normalize(b));
         public static float DotNorm(Vector2 a, Vector2 b, float x) => (a != Vector2.Zero && b != Vector2.Zero) ? Vector2.Dot(Vector2.Normalize(a), Vector2.Normalize(b)) : x;
 
-        public static float XWA(float be, float br, bool b, float ce, float cr, bool c) {
+        public static float XWA(float be, float br, bool b, float ce, float cr, bool c) 
+        {
             if (b) 
                 return Math.Clamp(br / be, 0.0f, 1.5f);
             if (c) 
@@ -23,6 +29,8 @@ namespace Saturn {
         }
 
         public static float UAdjust(float a, float b) => 1 - MathF.Pow(1 - a, b);
+
+        public static double spro(double x) => Math.Log(x + 1) + 1;
 
         public static float DSFunction(float dist, float smoothDist, float halfSmoothDist) 
         {
@@ -47,6 +55,12 @@ namespace Saturn {
         }
 
         public static float Smoothstep(float x, float start, float end)
+        {
+            x = Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
+            return x * x * (3.0f - 2.0f * x);
+        }
+
+        public static double Smoothstep(double x, double start, double end)
         {
             x = Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
             return x * x * (3.0f - 2.0f * x);
@@ -77,5 +91,34 @@ namespace Saturn {
             float sine = MathF.Sin(a);
             return new Vector2((cosine * p.X) - (sine * p.Y), (sine * p.X) + (cosine * p.Y));
         }
+
+        public static int Identify(string name) 
+        {
+            int ID;
+            switch (name) {
+                case "Wacom PTK-470":
+                case "Wacom PTK-670":
+                case "Wacom PTK-870":
+                    ID = 1;
+                break;
+                case "Wacom PTH-460":
+                case "Wacom PTH-660":
+                case "Wacom PTH-860":
+                    ID = 2;
+                break;
+                case "Wacom CTL-480":
+                case "Wacom CTL-680":
+                case "Wacom CTH-480":
+                case "Wacom CTH-680":
+                    ID = 67;
+                break;
+                default:
+                    ID = 0;
+                break;
+            }
+            return ID;
+        }
     }
+
+    
 }
