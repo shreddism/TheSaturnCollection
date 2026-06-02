@@ -114,13 +114,13 @@ namespace Saturn
                         }
                         double fac = Smoothstep(v2 / spro(v1 / 10), 3.0, 6.0);
                         if (!filter.nonconf) {
-                            tQ.data[0, 0] = 0.01;
+                            tQ.data[0, 0] = 0.1;
                             tQ.data[1, 1] = 0.25 * (1 + fac * 5 * Smoothstep((v1 + v2), 5.0, 50.0));
-                            tQ.data[2, 2] = 1.0 / (1 + fac * 5 * Smoothstep((Smoothstep(v2, 10.0, 50.0) * v1), 10.0, 50.0));
-                            tQ.data[3, 3] = 6.0 * (1 + ((10 * Smoothstep(v1, 0.0, 5.0)) + fac * (10000 * Smoothstep(v2, 5.0, 25.0))) / spro(v1 / 100));
+                            tQ.data[2, 2] = 2.5 / (1 + fac * 5 * Smoothstep((Smoothstep(v2, 10.0, 50.0) * v1), 10.0, 50.0));
+                            tQ.data[3, 3] = 6.0 * (1 + ((10 * Smoothstep(v1, 0.0, 5.0)) + fac * (10000 * Smoothstep(v2, 5.0, 25.0))) / spro(v1 / 25.0));
                             tR.data[0,0] = 0.00001 - 0.000009 * Math.Pow(Smoothstep((v1 + v2), 0.0, 10.0), 0.5);
-                            tR.data[1,1] = 1.0 - 0.999999 * Math.Pow(Smoothstep((v1 + v2), 5.0, 20.0), 2);
-                            tR.data[2,2] = 1.0 - 0.999999 * Math.Pow(Smoothstep((v1 + v2), 5.0, 30.0), 2);
+                            tR.data[1,1] = 1.0 - 0.99999 * Math.Pow(Smoothstep((v1 + v2), 5.0, 20.0), 2.0);
+                            tR.data[2,2] = 1.0 - 0.99999 * Math.Pow(Smoothstep((v1 + v2), 5.0, 30.0), 2.0);
                         }
                         else {
                             tQ.data[0, 0] = 0.01;

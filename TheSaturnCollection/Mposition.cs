@@ -232,7 +232,6 @@ namespace Saturn
         protected override void ConsumeState()
         {
             if (State is ITabletReport report) {  
-                perfStopwatch.Restart();
 
                 if (!init) {
                     filter = new InterpFilter(this);
@@ -244,7 +243,6 @@ namespace Saturn
                 else if (filter!.HandleConsume(report) == 1) {
                     UpdateState();
                 }
-                //Console.WriteLine(perfStopwatch.Restart().TotalNanoseconds); 
 
             }
             else {
@@ -260,7 +258,6 @@ namespace Saturn
             }
         }
 
-        //public HPETDeltaStopwatch perfStopwatch = new HPETDeltaStopwatch();
 
         [TabletReference]
         public TabletReference TabletReference { set { name = value.Properties.Name; } }

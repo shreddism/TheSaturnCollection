@@ -31,6 +31,7 @@ namespace Saturn
         public static float UAdjust(float a, float b) => 1 - MathF.Pow(1 - a, b);
 
         public static double spro(double x) => Math.Log(x + 1) + 1;
+        public static float spro(float x) => MathF.Log(x + 1) + 1;
 
         public static float DSFunction(float dist, float smoothDist, float halfSmoothDist) 
         {

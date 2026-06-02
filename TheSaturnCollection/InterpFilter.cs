@@ -191,20 +191,6 @@ namespace Saturn
         }
 
         void ConsumeFilterPass(ITabletReport report) {
-           /* if (tick > 90) {
-                Console.WriteLine(accel[0]);
-                s1 += (double)Vector2.DistanceSquared(smpos[0], check);
-                s2 += (double)Vector2.DistanceSquared(smpos[0], check2);
-                Console.WriteLine(s1);
-                Console.WriteLine(s2);
-                Console.WriteLine(Vector2.Distance(dir[0], dir[2]));
-                Console.WriteLine(Vector2.Distance(unnamedAccelFactor1, dir[0]));
-                Console.WriteLine(Vector2.Distance(unnamedAccelFactor2, dir[0]));
-                Console.WriteLine("--");
-            }*/
-
-            //Console.WriteLine(name);
-
             Vector2 predict = PredictPass();            
 
             tOffset += secAvg - consumeDelta;
@@ -221,47 +207,43 @@ namespace Saturn
             }
         }
 
-        //double s1, s2;
-       // int tick;
-        
         Vector2 PredictPass() {
             Vector2 predict = smpos[0];
-            nonconf = (pflag && ((emergency > 0) || (pressure[0] == 0 && Vector2.Distance(dir[0], dir[1] + ddir[1]) > (vel[0] / 5))));
             if (frameShift > 0f) {
-                if (kf != null) {
-                    if (tabletType == 1) {
-                        nonconf = ((emergency > 0) || (pressure[0] == 0 && Vector2.Distance(dir[0], dir[1] + ddir[1]) > (vel[0] / 5)));
-                        predict = kf.Update(smpos[0], this);
-                        if (emergency == 0 && !(pressure[0] == 0 && Vector2.Distance(dir[0], dir[1] + ddir[1]) > (vel[0] / 5))) {
-                            float fac = Smoothstep(Math.Abs(accel[0]), 5.0f, 25.0f);
-                            predict = Vector2.Lerp(predict, pos[0] + dir[0] + ddir[0], fac);
-                            predict += fac * Smoothstep(Math.Abs(jerk[0]) + (Math.Abs(accel[0]) / 2.0f), 5.0f, 20.0f) * (ddir[0] - ddir[1]);
-                        }
-                       // check = predict;
-                        predict += (smpos[0] - predict) * (1f - frameShift);
-                        unnamedAccelFactor1 = Trajectory(dir[0], dir[1], dir[2], 2.0f + frameShift);
-                        unnamedAccelFactor2 = Trajectory((dir[0] + dir[1]) * 0.5f, (dir[2] + dir[3]) * 0.5f, (dir[4] + dir[5]) * 0.5f, 2.25f + 0.5f * frameShift);
-                        if (emergency == 0 && pressure[0] > 0 && Vector2.Distance(dir[0], dir[2]) > Vector2.Distance(dir[0], dir[1])) {
-                            float f2 = Smoothstep(vel[0] + accel[0], 10.0f, 40.0f) * Smoothstep(Vector2.Distance(dir[0], dir[2]), 5.0f, 20.0f) * Smoothstep(Math.Abs(accel[0]) + Math.Abs(jerk[0]), 50.0f, 10.0f);
-                            float f1 = Smoothstep(vel[0] + Math.Abs(accel[0]), 25.0f, 50.0f) * Smoothstep(Vector2.Distance(dir[0], dir[2]), 15.0f, 35.0f);
-                        //   Console.WriteLine(f1);
-                        //  Console.WriteLine(f2);
-                            predict = Vector2.Lerp(predict, smpos[0] + unnamedAccelFactor1, f1);
-                            if (DotNorm(dir[0], dir[5], 0.0f) > 0.9f && DotNorm(ddir[0], ddir[5], 0.0f) > 0.9f && !((Math.Abs(accel[0]) > ddir[0].Length() / 2) && DotNorm(ddir[0], (dir[0] * float.Sign(accel[0])), 0.0f) < 0.9f))
-                                predict = Vector2.Lerp(predict, smpos[0] + unnamedAccelFactor2, Math.Max(0.0f, f2 - f1)); 
-                        }
-                       // check2 = predict;
-                    }
-                    else {
-                        predict = kf.Update(smpos[0], this);
-                    }
-                }
-                else {
-                    predict = pos[0];
-                }
-                
-            }
+                nonconf = (pflag && ((emergency > 0) || (pressure[0] == 0 && Vector2.Distance(dir[0], dir[1] + ddir[1]) > (vel[0] / 5))));
 
+                if (kf != null) {
+                    predict = kf.Update(smpos[0], this);
+
+                    if (tabletType == 1) {
+                        float fact = 0f;
+                        if (!nonconf) {
+                            float fac = Smoothstep(Math.Abs(accel[0]), 5.0f, 25.0f);
+                            predict = Vector2.Lerp(predict, smpos[0] + dir[0] + ddir[0], fac);
+                            
+                            fact = fac * Smoothstep(Math.Abs(jerk[0]) + (Math.Abs(accel[0]) / 2.0f), 5.0f, 20.0f);
+                            predict += fact * (ddir[0] - ddir[1]);
+                        }
+
+                        predict += (smpos[0] - predict) * (1f - frameShift);
+                        
+                        if (!nonconf && Vector2.Distance(dir[0], dir[2]) > Vector2.Distance(dir[0], dir[1]) && vel[0] > 20.0f) {
+                            Vector2 x1 = Trajectory(dir[0], dir[1], dir[2], 2.0f + frameShift);
+                            float f1 = Smoothstep(vel[0] + (accel[0] * spro((vel[0] + Math.Abs(accel[0])) / 25.0f)), 20.0f, 40.0f) * Smoothstep(Vector2.Distance(dir[0], dir[2]), 10.0f, 30.0f);
+
+                            predict = Vector2.Lerp(predict, smpos[0] + x1, Math.Max(0.0f, f1));
+
+                            Vector2 x2 = Trajectory((dir[0] + dir[1]) * 0.5f, (dir[2] + dir[3]) * 0.5f, (dir[4] + dir[5]) * 0.5f, 2.25f + 0.5f * frameShift);
+                            float f2 = Smoothstep(vel[0] + accel[0], 10.0f, 40.0f) * Smoothstep(Vector2.Distance(dir[0], dir[2]), 5.0f, 20.0f) * Smoothstep(Math.Abs(accel[0]) + Math.Abs(jerk[0]), 50.0f, 10.0f);
+
+                            if (DotNorm(dir[0], dir[5], 0.0f) > 0.9f && DotNorm(ddir[0], ddir[5], 0.0f) > 0.9f) {
+                                predict = Vector2.Lerp(predict, smpos[0] + x2, Math.Max(0.0f, f2 - f1)); 
+                            }                                
+
+                        }
+                    }
+                }
+            }
             return predict;
         }
 
@@ -446,7 +428,6 @@ namespace Saturn
         public string wireMode;
         public float rInner, stockWeight, smoothDist, sepMult, aResponse, msOverride, areaScale, xMod;
         public bool tabletToggle;
-        Vector2 unnamedAccelFactor1, unnamedAccelFactor2;
         public Vector2 clampHold, clampOutput;
         public float halfSmoothDist;
         public Vector2 smoothOutput;
