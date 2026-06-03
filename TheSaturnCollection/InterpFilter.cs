@@ -10,7 +10,7 @@ namespace Saturn
 {
     public class InterpFilter 
     {
-        public InterpFilter(MultifilterTR m) 
+        public InterpFilter(MultifilterI m) 
         {
             frameShift = m.frameShift;
             reverseSmoothing = m.reverseSmoothing;
@@ -32,22 +32,27 @@ namespace Saturn
 
         public void Initialize(ITabletReport report) 
         {
-            tabletType = Identify(name);
-            if ((tabletType == 1 || tabletType == 2) && tabletToggle) {
+            if (tabletToggle)
+                Identify(this);
+
+            if ((tabletType == 1 || tabletType == 2) && tabletToggle) 
                 pflag = true;
-            }
+            
             halfSmoothDist = smoothDist * 0.5f;
+
             if (msOverride > 0) {
                 reportMsAvg = msOverride;
                 msAvg = msOverride;
                 correctWeight = startCorrectWeight * expect * (msStandard / msOverride);
                 secAvg = reportMsAvg / 1000f;
                 rpsAvg = 1f / secAvg;
+
                 if (dacInner + dacOuter == 0f) 
                     adjdWeight = correctWeight * 0.01f;
             }
 
             adjDacOuter = Math.Max(dacOuter, dacInner + 0.01f);
+
             wireCode = wireMode switch {
                 "Non-Wire - Point" => 1,
                 "Non-Wire - Interp" => 2,
@@ -55,9 +60,11 @@ namespace Saturn
                 "Wire - Interp" => 4,
                 _ => 1
             };
+
             pointFlag = ((wireCode & 1) == 1);
             wireFlag = (wireCode > 2);
             wireAdjustFlag = (wireCode == 4);
+
             ResetValues(new Vector2(report.Position.X * xMod, report.Position.Y));
 
             emergency = 4;
@@ -71,6 +78,7 @@ namespace Saturn
                 eflag = true;   
                 emPos = outputInternal;
                 emergency = 4;
+
                 if (wireFlag) 
                     return 1;
 
@@ -78,24 +86,25 @@ namespace Saturn
             }
 
             reportTime = (float)reportStopwatch.Restart().TotalMilliseconds;
-                consumeDelta = reportTime / 1000f;
-                if (reportTime < 25f && reportTime > 0.01f) {
-                    if (msOverride == 0) {
-                        reportMsAvg += ((reportTime - reportMsAvg) * 0.1f);
-                        rpsAvg += (1f / (consumeDelta) - rpsAvg) * (1f - MathF.Exp(-2f * (consumeDelta)));
-                        secAvg = 1f / rpsAvg;
-                        msAvg = 1000f * secAvg;
-                        correctWeight = startCorrectWeight * expect * (msStandard / reportMsAvg);
-                    }
+            consumeDelta = reportTime / 1000f;
 
-                    if (emergency > 0) 
-                        emergency--;
+            if (reportTime < 25f && reportTime > 0.01f) {
+                if (msOverride == 0) {
+                    reportMsAvg += ((reportTime - reportMsAvg) * 0.1f);
+                    rpsAvg += (1f / (consumeDelta) - rpsAvg) * (1f - MathF.Exp(-2f * (consumeDelta)));
+                    secAvg = 1f / rpsAvg;
+                    msAvg = 1000f * secAvg;
+                    correctWeight = startCorrectWeight * expect * (msStandard / reportMsAvg);
                 }
-                else {
-                    emergency = 4;
-                    eflag = false;
-                    ResetValues(new Vector2(report.Position.X * xMod, report.Position.Y));
-                }
+
+                if (emergency > 0) 
+                    emergency--;
+            }
+            else {
+                emergency = 4;
+                eflag = false;
+                ResetValues(new Vector2(report.Position.X * xMod, report.Position.Y));
+            }
 
             StatUpdate(report);
 
@@ -109,55 +118,59 @@ namespace Saturn
 
         public void HandleUpdate(ITabletReport report) 
         {
+            updateTime = (float)updateStopwatch.Restart().TotalMilliseconds;
             if (emergency > 0) {
-                updateTime = (float)updateStopwatch.Restart().TotalMilliseconds;
-                    report.Pressure = pressure[0];
-                    if (eflag) {
-                        if (!pointFlag) {
-                            startOutput = pos[0];
-                            FilterPass();
-                        }
-                    
-                        float eTime = ((float)reportStopwatch.Elapsed.TotalSeconds * Frequency / reportMsAvg) * (expect);
-                        float scale = Math.Min((((float)(4 -  emergency) + Math.Min(eTime, 1.0f)) * 0.25f), 1.0f);
-                        outputInternal = Vector2.Lerp(emPos, adaptOutput, scale); 
-                        report.Position = new Vector2(outputInternal.X / xMod, outputInternal.Y);
-                        dirOfOutput = (report.Position - lastOutputPos) / updateTime;
-                        lastOutputPos = report.Position;
-                    }
-                    else { 
-                        ERefresh();
-                        emPos = pos[0];
-                        report.Position = new Vector2(adaptOutput.X / xMod, adaptOutput.Y);
-                        lastOutputPos = report.Position;
-                    }
-                    return;
-                } 
+                report.Pressure = pressure[0];
 
-                float t = 1 + (float)(runningStopwatch.Elapsed - latestReport).TotalSeconds * rpsAvg;
-                t = Math.Clamp(t, 0, 3);
-                if (pointFlag) {
-                    outputInternal = RTrajectory(t, fipos[2], fipos[1], fipos[0]);
+                if (eflag) {
+                    if (!pointFlag) {
+                        startOutput = pos[0];
+                        FilterPass();
+                    }
+                
+                    float eTime = ((float)reportStopwatch.Elapsed.TotalSeconds * Frequency / reportMsAvg) * (expect);
+                    float scale = Math.Min((((float)(4 -  emergency) + Math.Min(eTime, 1.0f)) * 0.25f), 1.0f);
+                    outputInternal = Vector2.Lerp(emPos, adaptOutput, scale); 
+                    report.Position = new Vector2(outputInternal.X / xMod, outputInternal.Y);
+                    dirOfOutput = (report.Position - lastOutputPos) / updateTime;
+                    lastOutputPos = report.Position;
                 }
-                else {
-                    startOutput = RTrajectory(t, stpos[2], stpos[1], stpos[0]);
-                    FilterPass();
-                    outputInternal = adaptOutput;
-                }
-
-                emPos = outputInternal;
-                report.Position = new Vector2(outputInternal.X / xMod, outputInternal.Y);
-                dirOfOutput = (report.Position - lastOutputPos) / updateTime;
-                lastOutputPos = report.Position;
-                report.Pressure = pressure[0];   
-                if (!vec2IsFinite(report.Position + startOutput + clampOutput + smoothOutput + adaptOutput + outputInternal)) {
+                else { 
                     ERefresh();
                     emPos = pos[0];
-                    eflag = false;
-                    emergency = 4;
-                    ResetValues(pos[0]);
-                    report.Position = new Vector2(outputInternal.X / xMod, outputInternal.Y);
-                }       
+                    report.Position = new Vector2(adaptOutput.X / xMod, adaptOutput.Y);
+                    lastOutputPos = report.Position;
+                }
+
+                return;
+            } 
+
+            float t = 1 + (float)(runningStopwatch.Elapsed - latestReport).TotalSeconds * rpsAvg;
+            t = Math.Clamp(t, 0, 3);
+
+            if (pointFlag) {
+                outputInternal = RTrajectory(t, fipos[2], fipos[1], fipos[0]);
+            }
+            else {
+                startOutput = RTrajectory(t, stpos[2], stpos[1], stpos[0]);
+                FilterPass();
+                outputInternal = adaptOutput;
+            }
+
+            emPos = outputInternal;
+            report.Position = new Vector2(outputInternal.X / xMod, outputInternal.Y);
+            dirOfOutput = (report.Position - lastOutputPos) / updateTime;
+            lastOutputPos = report.Position;
+            report.Pressure = pressure[0];   
+
+            if (!vec2IsFinite(report.Position + startOutput + clampOutput + smoothOutput + adaptOutput + outputInternal)) {
+                ERefresh();
+                emPos = pos[0];
+                eflag = false;
+                emergency = 4;
+                ResetValues(pos[0]);
+                report.Position = new Vector2(outputInternal.X / xMod, outputInternal.Y);
+            }       
         }
         
         public void StatUpdate(ITabletReport report) 
@@ -165,6 +178,7 @@ namespace Saturn
             InsertAtFirst(pos, report.Position);
             pos[0].X *= xMod;
             Vector2 smoothed = pos[0];
+
             if (reverseSmoothing < 1f && reverseSmoothing > 0f)
                 smoothed = pos[1] + (pos[0] - pos[1]) / reverseSmoothing;
 
@@ -176,6 +190,7 @@ namespace Saturn
             InsertAtFirst(jerk, accel[0] - accel[1]);
             InsertAtFirst(pointaccel, ddir[0].Length());
             InsertAtFirst(pressure, report.Pressure);
+
             if (dir[0] == pos[0]) {
                 emergency = 4;
                 dir[0] = Vector2.Zero;
@@ -190,16 +205,19 @@ namespace Saturn
             }
         }
 
-        void ConsumeFilterPass(ITabletReport report) {
-            Vector2 predict = PredictPass();            
-
+        void ConsumeFilterPass(ITabletReport report) 
+        {
+            Vector2 predict = PredictPass();         
+            InsertAtFirst(prpos, predict);
+            InsertAtFirst(prdir, prpos[0] - prpos[1]);   
+            
             tOffset += secAvg - consumeDelta;
             tOffset *= MathF.Exp(-5f * consumeDelta);
             tOffset = Math.Clamp(tOffset, -secAvg, secAvg);
             latestReport = runningStopwatch.Elapsed + TimeSpan.FromSeconds(tOffset);
-            InsertAtFirst(prpos, predict);
-            InsertAtFirst(prdir, prpos[0] - prpos[1]);
+            
             DAC();
+
             if (pointFlag) {
                 startOutput = stpos[0];
                 FilterPass();
@@ -207,8 +225,10 @@ namespace Saturn
             }
         }
 
-        Vector2 PredictPass() {
+        Vector2 PredictPass() 
+        {
             Vector2 predict = smpos[0];
+
             if (frameShift > 0f) {
                 nonconf = (pflag && ((emergency > 0) || (pressure[0] == 0 && Vector2.Distance(dir[0], dir[1] + ddir[1]) > (vel[0] / 5))));
 
@@ -218,7 +238,7 @@ namespace Saturn
                     if (tabletType == 1) {
                         float fact = 0f;
                         if (!nonconf) {
-                            float fac = Smoothstep(Math.Abs(accel[0]), 5.0f, 25.0f);
+                            float fac = Smoothstep(Vector2.Distance(dir[0], dir[2]), 2.5f, 7.5f);
                             predict = Vector2.Lerp(predict, smpos[0] + dir[0] + ddir[0], fac);
                             
                             fact = fac * Smoothstep(Math.Abs(jerk[0]) + (Math.Abs(accel[0]) / 2.0f), 5.0f, 20.0f);
@@ -231,19 +251,19 @@ namespace Saturn
                             Vector2 x1 = Trajectory(dir[0], dir[1], dir[2], 2.0f + frameShift);
                             float f1 = Smoothstep(vel[0] + (accel[0] * spro((vel[0] + Math.Abs(accel[0])) / 25.0f)), 20.0f, 40.0f) * Smoothstep(Vector2.Distance(dir[0], dir[2]), 10.0f, 30.0f);
 
-                            predict = Vector2.Lerp(predict, smpos[0] + x1, Math.Max(0.0f, f1));
+                            predict = Vector2.Lerp(predict, smpos[0] + x1, Math.Max(0.0f, 0.75f * f1));
 
-                            Vector2 x2 = Trajectory((dir[0] + dir[1]) * 0.5f, (dir[2] + dir[3]) * 0.5f, (dir[4] + dir[5]) * 0.5f, 2.25f + 0.5f * frameShift);
-                            float f2 = Smoothstep(vel[0] + accel[0], 10.0f, 40.0f) * Smoothstep(Vector2.Distance(dir[0], dir[2]), 5.0f, 20.0f) * Smoothstep(Math.Abs(accel[0]) + Math.Abs(jerk[0]), 50.0f, 10.0f);
+                            Vector2 x2 = Trajectory((dir[0] + dir[1]) * 0.5f, (dir[2] + dir[3]) * 0.5f, (dir[4] + dir[5]) * 0.5f, 2.25f + 0.5f * frameShift);   // https://www.desmos.com/calculator/oecxkq2eue
+                            float f2 = Smoothstep(vel[0] + accel[0], 10.0f, 40.0f) * Smoothstep(Vector2.Distance(dir[0], dir[2]), 3.0f, 20.0f) * Smoothstep(Math.Abs(accel[0]) + Math.Abs(jerk[0]), 50.0f, 10.0f);
 
                             if (DotNorm(dir[0], dir[5], 0.0f) > 0.9f && DotNorm(ddir[0], ddir[5], 0.0f) > 0.9f) {
-                                predict = Vector2.Lerp(predict, smpos[0] + x2, Math.Max(0.0f, f2 - f1)); 
+                                predict = Vector2.Lerp(predict, smpos[0] + x2, Math.Max(0.0f, 0.9f * (f2 - f1)));
                             }                                
-
                         }
                     }
                 }
             }
+
             return predict;
         }
 
@@ -274,6 +294,7 @@ namespace Saturn
             float ringDirLength = ringDir.Length();
             clampHold += ringDir;
             clampOutput += ringDir;
+
             if (ringDirLength > 0 || distLength > rInner || accel[0] < -10 * areaScale || vel[0] > 10 * rInner) {
                 float xwa = XWA(expect, updateTime, wireAdjustFlag, reportMsAvg, expect, pointFlag);
                 clampOutput = Vector2.Lerp(clampOutput, startOutput, UAdjust(Smoothstep(ringDirLength, -0.01f, rInner), xwa));
@@ -289,6 +310,7 @@ namespace Saturn
             float wcon = WireWeightAdjust(stockWeight * Default(mLength / distLength, 0), expect, updateTime, wireAdjustFlag);
             smoothHold += wcon * dist;
             smoothOutput = smoothHold;
+
             if (sepMult > 0 && mLength > 0) {
                 if (!(wireFlag) || updateTime / expect > 0.99f) 
                     sepScale = Smoothstep(distLength, -0.01f, smoothDist * sepMult);
@@ -297,6 +319,7 @@ namespace Saturn
             }
 
             float aMod = 0;
+
             if (aResponse > 0f) {
                 float aDist = Vector2.Distance(smoothOutput, adaptOutput);
                 aMod = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * MathF.Pow(Smoothstep(aDist, 2500 * aResponse, (500 * aResponse) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 25 * areaScale), 3.0f) * DotNorm(ddir[0], dir[0], 0); // :)

@@ -8,10 +8,10 @@ using static Saturn.Utils;
 
 namespace Saturn
 {
-    [PluginName("Saturn - Multifilter (Position Interpolation)")]
-    public class MultifilterTR : AsyncPositionedPipelineElement<IDeviceReport>
+    [PluginName("Saturn - Multifilter (Interpolated)")]
+    public class MultifilterI : AsyncPositionedPipelineElement<IDeviceReport>
     {
-        public MultifilterTR() : base()
+        public MultifilterI() : base()
         {
         }
 
@@ -83,7 +83,7 @@ namespace Saturn
         }
         public float _dacOuter;
 
-        [Property("Wire - Filter Mode"), PropertyValidated(nameof(wireModes)), DefaultPropertyValue("Wire - Point"), ToolTip
+        [Property("Wire - Filter Mode"), PropertyValidated(nameof(wireModes)), DefaultPropertyValue("Non-Wire - Interp"), ToolTip
         (
             "Controls ConsumeState calling UpdateState and when below filtering applies.\n" +
             "Check the wiki for more info."
@@ -236,18 +236,18 @@ namespace Saturn
                     return;
             }
             if (State is ITabletReport report) {  
-
                 if (!init) {
                     filter = new InterpFilter(this);
                     if (filter != null) {
                         filter!.Initialize(report);
                         init = true;
                     }
+                    return;
                 }
-                else if (filter!.HandleConsume(report) == 1) {
+                int fawk = filter!.HandleConsume(report);
+                if (fawk == 1) {
                     UpdateState();
                 }
-
             }
             else {
                 OnEmit();
@@ -258,10 +258,12 @@ namespace Saturn
         {
             if (State is ITabletReport report && PenIsInRange() && init) {   
                 filter!.HandleUpdate(report);
+                
                 OnEmit();
             }
         }
 
+        
 
         [TabletReference]
         public TabletReference TabletReference { set { name = value.Properties.Name; } }

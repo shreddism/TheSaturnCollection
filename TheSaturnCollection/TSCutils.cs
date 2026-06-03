@@ -93,10 +93,10 @@ namespace Saturn
             return new Vector2((cosine * p.X) - (sine * p.Y), (sine * p.X) + (cosine * p.Y));
         }
 
-        public static int Identify(string name) 
+        public static void Identify(InterpFilter filter) 
         {
             int ID;
-            switch (name) {
+            switch (filter.name) {
                 case "Wacom PTK-470":
                 case "Wacom PTK-670":
                 case "Wacom PTK-870":
@@ -117,9 +117,19 @@ namespace Saturn
                     ID = 0;
                 break;
             }
-            return ID;
+            filter.tabletType = ID;
+        }
+    
+        public static void PlotD(string c, Vector2 p, bool t) 
+        {
+            Console.Write(c + "x");
+            Console.WriteLine(p.X);
+            Console.Write(c + "y");
+            Console.WriteLine(p.Y * - 1);
+            if (t) {
+                Console.WriteLine("xx");
+                Console.WriteLine("dd");
+            }
         }
     }
-
-    
 }

@@ -185,33 +185,247 @@ namespace Saturn
 
         private Matrix DetermineA(double[,] Aarr, InterpFilter filter) {
             Matrix A = Matrix.Build.DenseOfArray(Aarr);
-            switch (tuneID) {
-                case 1:
-                A[2, 2] *= 0.5 + 0.5 * Math.Pow(Smoothstep((double)Vector2.Distance(filter.dir[0], filter.dir[2]), 0.1, 7.5), 0.5);
-                A[2, 3] *= 5.0 * Smoothstep(Math.Abs(filter.accel[0]) / spro(filter.vel[0] / 10), 0.1, Math.Abs(filter.accel[0]));
+            if (tuneID == 0) {
+                return A;
+            }
+            else {
+                double v1, v2, v3;
+                switch (tuneID) {
+                case 1:   
+                    if (movementAxis == 0) {
+                        v1 = Math.Abs(filter.dir[0].X - filter.dir[2].X);
+                        v3 = Math.Abs(filter.ddir[0].X);
+                        v2 = v3 / spro(Math.Abs(filter.dir[0].X / 10));
+                    }
+                    else {
+                        v1 = Math.Abs(filter.dir[0].Y - filter.dir[2].Y);
+                        v3 = Math.Abs(filter.ddir[0].Y);
+                        v2 = v3 / spro(Math.Abs(filter.dir[0].Y / 10));
+                    }
+                    A[2, 2] *= 0.5 + 0.5 * Math.Pow(Smoothstep(v1, 0.1, 5), 0.5);
+                    A[2, 3] *= 5.0 * Smoothstep(v2, 0.0, v3 + 0.1);
                 break;
                 case 2:
                 break;
-                case 0:
-                break;
                 default:
                 break;
+                }
+            
             }
             return A;
         }
 
         private void DetermineX(InterpFilter filter) {
-            switch (tuneID) {
-                case 1:
-                double tmp1 = Smoothstep(filter.vel[0] + Math.Abs(filter.accel[0]), 10.0, 25.0);
-                x[2,0] *= (1 + 0.25 * tmp1) - (0.5 * tmp1) * Smoothstep((double)Vector2.Distance(filter.dir[0], filter.dir[5]), 10.0, 5.0);
+            if (tuneID == 0) {
+                return;
+            }
+            else {
+                double v1, v2, v3;
+                switch (tuneID) {
+                    case 1:
+                        if (movementAxis == 0) {
+                            v1 = (Math.Abs(filter.dir[0].X) + Math.Abs(filter.ddir[0].X));
+                            v3 = Math.Abs(filter.dir[0].X - filter.dir[5].X);
+                            v2 = v3 + Math.Abs(filter.ddir[0].X) + Math.Abs(filter.ddir[0].X - filter.ddir[1].X); 
+                        }
+                        else {
+                            v1 = (Math.Abs(filter.dir[0].Y) + Math.Abs(filter.ddir[0].Y));
+                            v3 = Math.Abs(filter.dir[0].Y - filter.dir[5].Y);
+                            v2 = v3 + Math.Abs(filter.ddir[0].Y) + Math.Abs(filter.ddir[0].Y - filter.ddir[1].Y); 
+                        }
+                        double tmp1 = Smoothstep(v1, 10.0, 25.0);
+                        x[2,0] *= Smoothstep(v2, 0.0, 7.5) * ((1.5 + tmp1) - (2.5 * tmp1) * Smoothstep(v3, 10.0, 5.0));
+                    break;
+                    case 2:
+                    break;
+                    default:
+                    break;
+                }
+            }
+        }
+        
+        public double Update2(double measuredPos, InterpFilter filter)
+        {
+            dt = filter.secAvg;
+            double measuredVel = (measuredPos - lastMeasuredPos) / dt;
+            double measuredAccel = (measuredVel - lastMeasuredVel) / dt;
+            lastMeasuredPos = measuredPos;
+            lastMeasuredVel = measuredVel;
+
+            var z = Matrix.Build.DenseOfArray(new double[,] { { measuredPos }, { measuredVel }, { measuredAccel }});
+
+            double[,] Aarr = new double[states, states];
+            for (int i = 0; i < states; i++) 
+            {
+                double time_pow = 1;
+                for (int j = i; j < states; j++) 
+                {
+                    Aarr[i, j] = time_pow * scale_const[i, j];
+                    time_pow *= dt;
+                } 
+            }
+
+            Matrix A = DetermineA2(Aarr, filter);
+
+            DetermineQR2(filter);
+
+            x = A * x;
+            P = A * P * A.Transpose() + tQ;
+
+            var S = H * P * H.Transpose() + tR;
+            var K = P * H.Transpose() * S.Inverse();
+
+            x = x + K * (z - H * x);
+            
+            P = (Matrix.Build.DenseIdentity(states) - K * H) * P;
+
+            DetermineX2(filter);
+
+            return (A * x)[0, 0];
+        }
+
+        private void DetermineQR2(InterpFilter filter) {
+            if (tuneID == 0) {
+                tQ = Q;
+                tR = R;
+            }
+            else {
+                double v1, v2;
+                switch (tuneID) {
+                    case 1:
+                        if (movementAxis == 0) {
+                            v1 = Math.Abs(filter.dir[0].X);
+                            v2 = Math.Abs((filter.ddir[0]).X) + Math.Abs((filter.ddir[0] - filter.ddir[1]).X);
+                        }
+                        else {
+                            v1 = Math.Abs(filter.dir[0].Y);
+                            v2 = Math.Abs((filter.ddir[0]).Y) + Math.Abs((filter.ddir[0] - filter.ddir[1]).Y);
+                        }
+                        double fac = Smoothstep(v2 / spro(v1 / 10), 3.0, 6.0);
+                        if (!filter.nonconf) {
+                            tQ.data[0, 0] = 0.1;
+                            tQ.data[1, 1] = 0.25 * (1 + fac * 5 * Smoothstep((v1 + v2), 5.0, 50.0));
+                            tQ.data[2, 2] = 2.5 / (1 + fac * 5 * Smoothstep((Smoothstep(v2, 10.0, 50.0) * v1), 10.0, 50.0));
+                            tQ.data[3, 3] = 6.0 * (1 + ((10 * Smoothstep(v1, 0.0, 5.0)) + fac * (10000 * Smoothstep(v2, 5.0, 25.0))) / spro(v1 / 25.0));
+                            tR.data[0,0] = 0.00001 - 0.000009 * Math.Pow(Smoothstep((v1 + v2), 0.0, 10.0), 0.5);
+                            tR.data[1,1] = 1.0 - 0.99999 * Math.Pow(Smoothstep((v1 + v2), 5.0, 20.0), 2.0);
+                            tR.data[2,2] = 1.0 - 0.99999 * Math.Pow(Smoothstep((v1 + v2) + Vector2.Distance(filter.dir[0], filter.dir[2]), 5.0, 50.0), 1.0);
+                        }
+                        else {
+                            tQ.data[0, 0] = 0.01;
+                            tQ.data[1, 1] = 0.01;
+                            tQ.data[2, 2] = 0.01;
+                            tQ.data[3, 3] = 0.01;
+                            tR.data[0,0] = 10000;
+                            tR.data[1,1] = 100000;
+                            tR.data[2,2] = 1000000;
+                        }
+                    break;
+                    case 2:
+                        if (movementAxis == 0) {
+                            v1 = Math.Abs(filter.dir[0].X);
+                            v2 = Math.Abs((filter.ddir[0]).X) + Math.Abs((filter.ddir[0] - filter.ddir[1]).X);
+                        }
+                        else {
+                            v1 = Math.Abs(filter.dir[0].Y);
+                            v2 = Math.Abs((filter.ddir[0]).Y) + Math.Abs((filter.ddir[0] - filter.ddir[1]).Y);
+                        }
+                        if (!filter.nonconf) {
+                            tQ.data[0, 0] = 0.01;
+                            tQ.data[1, 1] = 0.25;
+                            tQ.data[2, 2] = 1.0;
+                            tQ.data[3, 3] = 60.0;
+                            tR.data[0,0] = 0.00001 - 0.000009 * Math.Pow(Smoothstep((v1 + v2), 0.0, 10.0), 0.5);
+                            tR.data[1,1] = 1.0 - 0.999999 * Math.Pow(Smoothstep((v1 + v2), 5.0, 20.0), 2.0);
+                            tR.data[2,2] = 1.0 - 0.999999 * Math.Pow(Smoothstep((v1 + v2), 5.0, 30.0), 2.0);
+                        }
+                        else {
+                            tQ.data[0, 0] = 0.01;
+                            tQ.data[1, 1] = 0.01;
+                            tQ.data[2, 2] = 0.01;
+                            tQ.data[3, 3] = 0.01;
+                            tR.data[0,0] = 10000;
+                            tR.data[1,1] = 100000;
+                            tR.data[2,2] = 1000000;
+                        }
+                    break;
+                    default:
+                        if (movementAxis == 0) {
+                            v1 = Math.Abs(filter.dir[0].X);
+                        }
+                        else {
+                            v1 = Math.Abs(filter.dir[0].Y);
+                        }
+                        tQ.data[0, 0] = 0.01;
+                        tQ.data[1, 1] = 0.25;
+                        tQ.data[2, 2] = 5.0;
+                        tQ.data[3, 3] = 60.0;
+                        tR.data[0, 0] = 0.00001;
+                        tR.data[1, 1] = 0.001 - 0.00099 * Smoothstep(v1, 5.0, 10.0);
+                        tR.data[2, 2] = 0.1 - 0.09999 * Smoothstep(v1, 5.0, 10.0);
+                    break;
+                }   
+            }
+        }
+
+        private Matrix DetermineA2(double[,] Aarr, InterpFilter filter) {
+            Matrix A = Matrix.Build.DenseOfArray(Aarr);
+            if (tuneID == 0) {
+                return A;
+            }
+            else {
+                double v1, v2, v3;
+                switch (tuneID) {
+                case 1:   
+                    if (movementAxis == 0) {
+                        v1 = Math.Abs(filter.dir[0].X - filter.dir[2].X);
+                        v3 = Math.Abs(filter.ddir[0].X);
+                        v2 = v3 / spro(Math.Abs(filter.dir[0].X / 10));
+                    }
+                    else {
+                        v1 = Math.Abs(filter.dir[0].Y - filter.dir[2].Y);
+                        v3 = Math.Abs(filter.ddir[0].Y);
+                        v2 = v3 / spro(Math.Abs(filter.dir[0].Y / 10));
+                    }
+                    A[2, 2] *= 0.5 + 0.5 * Math.Pow(Smoothstep(v1, 0.1, 5), 0.5);
+                    A[2, 3] *= 5.0 * Smoothstep(v2, 0.0, v3 + 0.1);
                 break;
                 case 2:
                 break;
-                case 0:
-                break;
                 default:
                 break;
+                }
+            
+            }
+            return A;
+        }
+
+        private void DetermineX2(InterpFilter filter) {
+            if (tuneID == 0) {
+                return;
+            }
+            else {
+                double v1, v2, v3;
+                switch (tuneID) {
+                    case 1:
+                        if (movementAxis == 0) {
+                            v1 = (Math.Abs(filter.dir[0].X) + Math.Abs(filter.ddir[0].X));
+                            v3 = Math.Abs(filter.dir[0].X - filter.dir[5].X);
+                            v2 = v3 + Math.Abs(filter.ddir[0].X) + Math.Abs(filter.ddir[0].X - filter.ddir[1].X); 
+                        }
+                        else {
+                            v1 = (Math.Abs(filter.dir[0].Y) + Math.Abs(filter.ddir[0].Y));
+                            v3 = Math.Abs(filter.dir[0].Y - filter.dir[5].Y);
+                            v2 = v3 + Math.Abs(filter.ddir[0].Y) + Math.Abs(filter.ddir[0].Y - filter.ddir[1].Y); 
+                        }
+                        double tmp1 = Smoothstep(v1, 10.0, 25.0);
+                        x[2,0] *= Smoothstep(v2, 0.0, 7.5) * ((1.5 + tmp1) - (2.5 * tmp1) * Smoothstep(v3, 10.0, 5.0));
+                    break;
+                    case 2:
+                    break;
+                    default:
+                    break;
+                }
             }
         }
     }
@@ -231,6 +445,13 @@ namespace Saturn
         {
             float xState = (float)xFilter.Update(measuredPosition.X, filter); //Math.Abs((double)v1.X), Math.Abs((double)v2.X) + Math.Abs((double)v3.X));
             float yState = (float)yFilter.Update(measuredPosition.Y, filter); // Math.Abs((double)v1.Y), Math.Abs((double)v2.Y) + Math.Abs((double)v3.Y));
+            return new Vector2(xState, yState);
+        }
+
+        public Vector2 Update2(Vector2 measuredPosition, InterpFilter filter)
+        {
+            float xState = (float)xFilter.Update2(measuredPosition.X, filter); //Math.Abs((double)v1.X), Math.Abs((double)v2.X) + Math.Abs((double)v3.X));
+            float yState = (float)yFilter.Update2(measuredPosition.Y, filter); // Math.Abs((double)v1.Y), Math.Abs((double)v2.Y) + Math.Abs((double)v3.Y));
             return new Vector2(xState, yState);
         }
     }
@@ -361,6 +582,109 @@ namespace Saturn
             {
                 return DenseDiagonal(rows, cols, _ => value);
             }
+        }
+    }
+
+    public class KalmanFolk
+    {
+        private readonly double[,] scale_const;
+        private readonly int states;
+        private double lastMeasuredPos;
+
+        private Matrix x;
+        private Matrix P;
+        private Matrix Q;
+        private Matrix R;
+        private Matrix H;
+
+        public KalmanFolk(uint statesNumber, double initialPosition)
+        {
+            states = (int)statesNumber + 2;
+
+            scale_const = new double[states, states];
+            for (int i = 0; i < states; i++)
+            {
+                int fac_n = 1;
+                int fac_i = 0;
+                for (int j = i; j < states; j++)
+                {
+                    scale_const[i, j] = 1d / fac_n;
+                    fac_i++;
+                    fac_n *= fac_i;
+                }
+            }
+
+            lastMeasuredPos = initialPosition;
+            double[,] xArr = new double[states, 1];
+            xArr[0, 0] = initialPosition;
+
+            x = Matrix.Build.DenseOfArray(xArr);
+            P = Matrix.Build.DenseIdentity(states);
+            Q = Matrix.Build.DenseIdentity(states) * 1.0;
+            R = Matrix.Build.DenseDiagonal(2, 2, 0.00001);
+            H = Matrix.Build.DenseDiagonal(2, states, 1);
+        }
+
+        public double Update(double measuredPos, double dt, bool nonconfident)
+        {
+            double measuredVel = (measuredPos - lastMeasuredPos) / dt;
+            lastMeasuredPos = measuredPos;
+
+            var z = Matrix.Build.DenseOfArray(new double[,] { { measuredPos }, { measuredVel } });
+
+            double[,] Aarr = new double[states, states];
+            for (int i = 0; i < states; i++) 
+            {
+                double time_pow = 1;
+                for (int j = i; j < states; j++) 
+                {
+                    Aarr[i, j] = time_pow * scale_const[i, j];
+                    time_pow *= dt;
+                } 
+            }
+
+            /*
+                vvvvvvvvvvv
+            4 states should look like this
+            double[,] Aarr = new double[,] {
+                {          1,          dt^1/1!,    dt^2/2!,    dt^3/3!     },
+                {          0,          1,          dt^1/1!,    dt^2/2!     },
+                {          0,          0,          1,          dt^1/1!     },
+                {          0,          0,          0,          1           }
+            }
+            */
+
+            var A = Matrix.Build.DenseOfArray(Aarr);
+
+            x = A * x;
+            P = A * P * A.Transpose() + Q;
+
+            var S = H * P * H.Transpose() + R;
+            var K = P * H.Transpose() * S.Inverse();
+
+            x = x + K * (z - H * x);
+            P = (Matrix.Build.DenseIdentity(states) - K * H) * P;
+
+            return (A * x)[0, 0];
+        }
+    }
+
+    public class KalmanVectorFolk
+    {
+        private KalmanFolk xFilter;
+        private KalmanFolk yFilter;
+
+        public KalmanVectorFolk(uint states, Vector2 initialPosition)
+        {
+            xFilter = new KalmanFolk(states, initialPosition.X);
+            yFilter = new KalmanFolk(states, initialPosition.Y);
+        }
+
+        public Vector2 Update(Vector2 measuredPosition, float dt, bool nonconfident)
+        {
+            float xState = (float)xFilter.Update(measuredPosition.X, dt, nonconfident);
+            float yState = (float)yFilter.Update(measuredPosition.Y, dt, nonconfident);
+            return new Vector2(xState, yState);
         }
     }
 }
