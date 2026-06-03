@@ -231,6 +231,10 @@ namespace Saturn
 
         protected override void ConsumeState()
         {
+            if (init && filter!.pflag && State is IProximityReport p) {
+                if (p.NearProximity == false)
+                    return;
+            }
             if (State is ITabletReport report) {  
 
                 if (!init) {

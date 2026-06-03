@@ -13,6 +13,8 @@ namespace Saturn
 
         private int tuneID;
 
+        private double dt;
+
         int movementAxis;
 
         private Matrix x;
@@ -59,7 +61,7 @@ namespace Saturn
 
         public double Update(double measuredPos, InterpFilter filter)
         {
-            double dt = filter.secAvg;
+            dt = filter.secAvg;
             double measuredVel = (measuredPos - lastMeasuredPos) / dt;
             double measuredAccel = (measuredVel - lastMeasuredVel) / dt;
             lastMeasuredPos = measuredPos;
@@ -78,7 +80,7 @@ namespace Saturn
                 } 
             }
 
-            var A = Matrix.Build.DenseOfArray(Aarr);
+            Matrix A = DetermineA(Aarr, filter);
             
             DetermineQR(filter);
 
@@ -91,6 +93,8 @@ namespace Saturn
             x = x + K * (z - H * x);
             
             P = (Matrix.Build.DenseIdentity(states) - K * H) * P;
+
+            DetermineX(filter);
 
             return (A * x)[0, 0];
         }
@@ -120,7 +124,7 @@ namespace Saturn
                             tQ.data[3, 3] = 6.0 * (1 + ((10 * Smoothstep(v1, 0.0, 5.0)) + fac * (10000 * Smoothstep(v2, 5.0, 25.0))) / spro(v1 / 25.0));
                             tR.data[0,0] = 0.00001 - 0.000009 * Math.Pow(Smoothstep((v1 + v2), 0.0, 10.0), 0.5);
                             tR.data[1,1] = 1.0 - 0.99999 * Math.Pow(Smoothstep((v1 + v2), 5.0, 20.0), 2.0);
-                            tR.data[2,2] = 1.0 - 0.99999 * Math.Pow(Smoothstep((v1 + v2), 5.0, 30.0), 2.0);
+                            tR.data[2,2] = 1.0 - 0.99999 * Math.Pow(Smoothstep((v1 + v2) + Vector2.Distance(filter.dir[0], filter.dir[2]), 5.0, 50.0), 1.0);
                         }
                         else {
                             tQ.data[0, 0] = 0.01;
@@ -147,8 +151,8 @@ namespace Saturn
                             tQ.data[2, 2] = 1.0;
                             tQ.data[3, 3] = 60.0;
                             tR.data[0,0] = 0.00001 - 0.000009 * Math.Pow(Smoothstep((v1 + v2), 0.0, 10.0), 0.5);
-                            tR.data[1,1] = 1.0 - 0.999999 * Math.Pow(Smoothstep((v1 + v2), 5.0, 20.0), 2);
-                            tR.data[2,2] = 1.0 - 0.999999 * Math.Pow(Smoothstep((v1 + v2), 5.0, 30.0), 2);
+                            tR.data[1,1] = 1.0 - 0.999999 * Math.Pow(Smoothstep((v1 + v2), 5.0, 20.0), 2.0);
+                            tR.data[2,2] = 1.0 - 0.999999 * Math.Pow(Smoothstep((v1 + v2), 5.0, 30.0), 2.0);
                         }
                         else {
                             tQ.data[0, 0] = 0.01;
@@ -176,6 +180,38 @@ namespace Saturn
                         tR.data[2, 2] = 0.1 - 0.09999 * Smoothstep(v1, 5.0, 10.0);
                     break;
                 }   
+            }
+        }
+
+        private Matrix DetermineA(double[,] Aarr, InterpFilter filter) {
+            Matrix A = Matrix.Build.DenseOfArray(Aarr);
+            switch (tuneID) {
+                case 1:
+                A[2, 2] *= 0.5 + 0.5 * Math.Pow(Smoothstep((double)Vector2.Distance(filter.dir[0], filter.dir[2]), 0.1, 7.5), 0.5);
+                A[2, 3] *= 5.0 * Smoothstep(Math.Abs(filter.accel[0]) / spro(filter.vel[0] / 10), 0.1, Math.Abs(filter.accel[0]));
+                break;
+                case 2:
+                break;
+                case 0:
+                break;
+                default:
+                break;
+            }
+            return A;
+        }
+
+        private void DetermineX(InterpFilter filter) {
+            switch (tuneID) {
+                case 1:
+                double tmp1 = Smoothstep(filter.vel[0] + Math.Abs(filter.accel[0]), 10.0, 25.0);
+                x[2,0] *= (1 + 0.25 * tmp1) - (0.5 * tmp1) * Smoothstep((double)Vector2.Distance(filter.dir[0], filter.dir[5]), 10.0, 5.0);
+                break;
+                case 2:
+                break;
+                case 0:
+                break;
+                default:
+                break;
             }
         }
     }
