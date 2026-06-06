@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Saturn 
 {
@@ -44,6 +45,7 @@ namespace Saturn
         
         public static bool vec2IsFinite(Vector2 vec) => float.IsFinite(vec.X) & float.IsFinite(vec.Y);
 
+
         public static void InsertAtFirst<T>(T[] arr, T element)
         {
             for (int p = arr.Length - 1; p > 0; p--) arr[p] = arr[p - 1];
@@ -66,6 +68,10 @@ namespace Saturn
             x = Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
             return x * x * (3.0f - 2.0f * x);
         }
+
+        public static float Step(float x, float start, float end) => Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
+
+        public static double Step(double x, double start, double end) => Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
 
         public static float Powstep(float x, float start, float end, float p)
         {
@@ -93,10 +99,9 @@ namespace Saturn
             return new Vector2((cosine * p.X) - (sine * p.Y), (sine * p.X) + (cosine * p.Y));
         }
 
-        public static void Identify(InterpFilter filter) 
+        public static void Identify(string name, ref int ID) 
         {
-            int ID;
-            switch (filter.name) {
+            switch (name) {
                 case "Wacom PTK-470":
                 case "Wacom PTK-670":
                 case "Wacom PTK-870":
@@ -111,15 +116,63 @@ namespace Saturn
                 case "Wacom CTL-680":
                 case "Wacom CTH-480":
                 case "Wacom CTH-680":
-                    ID = 67;
+                case "Wacom CTL-472":
+                case "Wacom CTL-672":
+                case "Wacom CTL-471":
+                case "Wacom CTL-671":
+                case "Wacom CTL-470":
+                case "Wacom CTH-470":
+                case "Wacom CTH-670":
+                case "Wacom CTE-460":
+                case "Wacom CTE-660":
+                case "Wacom CTH-461":
+                case "Wacom CTH-661":
+                case "Wacom CTL-460":
+                case "Wacom CTH-460":
+                case "Wacom CTL-660":
+                case "Wacom MTE-450":
+                case "Wacom CTE-450":
+                case "Wacom CTE-650":
+                    ID = 3;
+                break;
+                case "Wacom PTH-451":
+                case "Wacom PTH-651":
+                case "Wacom PTH-851":
+                case "Wacom PTH-450":
+                case "Wacom PTK-450":
+                case "Wacom PTH-650":
+                case "Wacom PTK-650":
+                case "Wacom PTH-850":
+                case "Wacom PTK-440":
+                case "Wacom PTK-540WL":
+                case "Wacom PTK-640":
+                case "Wacom PTK-840":
+                case "Wacom PTK-1240":
+                case "Wacom PTZ-430":
+                case "Wacom PTZ-431W":
+                case "Wacom PTZ-630":
+                case "Wacom PTZ-631W":
+                case "Wacom PTZ-930":
+                case "Wacom PTZ-1230":
+                case "Wacom PTZ-1231W":
+                    ID = 4;
+                break;
+                case "Wacom CTL-4100":
+                case "Wacom CTL-4100WL":
+                case "Wacom CTL-6100":
+                case "Wacom CTL-6100WL":
+                case "Wacom CTL-490":
+                case "Wacom CTL-690":
+                case "Wacom CTH-490":
+                case "Wacom CTH-690":
+                    ID = 5;
                 break;
                 default:
                     ID = 0;
                 break;
             }
-            filter.tabletType = ID;
         }
-    
+
         public static void PlotD(string c, Vector2 p, bool t) 
         {
             Console.Write(c + "x");
@@ -132,4 +185,6 @@ namespace Saturn
             }
         }
     }
+
+    
 }

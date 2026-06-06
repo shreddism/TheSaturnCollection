@@ -225,13 +225,9 @@ namespace Saturn
         )]
         public bool tabletToggle { set; get; }
 
-        InterpFilter? filter;
-
-        bool init;
-
         protected override void ConsumeState()
         {
-            if (init && filter!.pflag && State is IProximityReport p) {
+            if (init && (filter!.tabletType == 1 || filter!.tabletType == 2) && State is IProximityReport p) {
                 if (p.NearProximity == false)
                     return;
             }
@@ -263,11 +259,12 @@ namespace Saturn
             }
         }
 
-        
+        bool init;
+
+        InterpFilter? filter;
 
         [TabletReference]
         public TabletReference TabletReference { set { name = value.Properties.Name; } }
         public string name = string.Empty;
     }
 }
-

@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using OpenTabletDriver.Plugin;
 using OpenTabletDriver.Plugin.Attributes;
 using OpenTabletDriver.Plugin.Output;
 using OpenTabletDriver.Plugin.Tablet;
@@ -33,11 +34,8 @@ namespace Saturn
         public void Initialize(ITabletReport report) 
         {
             if (tabletToggle)
-                Identify(this);
+                IDTablet(name, ref tabletType);
 
-            if ((tabletType == 1 || tabletType == 2) && tabletToggle) 
-                pflag = true;
-            
             halfSmoothDist = smoothDist * 0.5f;
 
             if (msOverride > 0) {
@@ -73,7 +71,8 @@ namespace Saturn
         
         public int HandleConsume(ITabletReport report)
         {
-            if (pflag && (report.Pressure == 0 && pressure[0] > 0) && (pos[0].Y == report.Position.Y)) {   // An extra report with identical position is thrown in. Don't process it.
+            if (tick < int.MaxValue) tick++;
+            if ((tabletType == 1 || tabletType == 2) && (report.Pressure == 0 && pressure[0] > 0) && (pos[0].Y == report.Position.Y)) {   // An extra report with identical position is thrown in. Don't process it.
                 InsertAtFirst(pressure, report.Pressure);
                 eflag = true;   
                 emPos = outputInternal;
@@ -196,7 +195,7 @@ namespace Saturn
                 dir[0] = Vector2.Zero;
                 eflag = false;
             }
-            else if (pflag && (pressure[0] > 0 && pressure[1] == 0)) {
+            else if (((tabletType == 1 || tabletType == 2 || tabletType == 5) && (pressure[0] > 0 && pressure[1] == 0)) || (tabletType == 5 && (pressure[0] == 0 && pressure[1] > 0))) {
                 if (emergency == 0) 
                     eflag = true;
 
@@ -205,11 +204,49 @@ namespace Saturn
             }
         }
 
+    //    public Vector2 lc1, lc2;
+    //    public Vector2 check1, check2;
+     //   public double s1, s2;
+      //  public double s3, s4;
+      //  public double s5, s6;
+
         void ConsumeFilterPass(ITabletReport report) 
         {
-            Vector2 predict = PredictPass();         
-            InsertAtFirst(prpos, predict);
-            InsertAtFirst(prdir, prpos[0] - prpos[1]);   
+      /*   if (tick > 90) {
+                double d1 = (double)(((check1 - pos[1]).Length() - dir[0].Length()));
+                double d2 = (double)(((stdir[0]).Length() - dir[0].Length()));
+                if (d1 < 0) s1 += d1;
+                else s3 += d1;
+                if (d2 < 0) s2 += d2;
+                else s4 += d2;
+
+                s5 += (double)Vector2.DistanceSquared(check1, pos[0]);
+                s6 += (double)Vector2.DistanceSquared(stpos[0], pos[0]);
+                Console.WriteLine(s1);
+                Console.WriteLine(s2);
+                Console.WriteLine(s3);
+                Console.WriteLine(s4);
+                Console.WriteLine(s5);
+                Console.WriteLine(s6);
+                Console.WriteLine("--");
+            }*/
+
+
+           // Console.WriteLine(tabletType);
+
+        //   lc1 = check1;
+        //lc2 = check2;
+
+       //   PlotD("v", (dir[0]), true);
+                
+
+            PredictPass();     
+
+         //  PlotD("a", (check1 - lc1), false);
+            
+      //      Console.WriteLine(accel[0]);
+    //     Console.WriteLine(prdir[0].Length() - prdir[1].Length());
+     //    Console.WriteLine("---");
             
             tOffset += secAvg - consumeDelta;
             tOffset *= MathF.Exp(-5f * consumeDelta);
@@ -217,6 +254,8 @@ namespace Saturn
             latestReport = runningStopwatch.Elapsed + TimeSpan.FromSeconds(tOffset);
             
             DAC();
+         //  PlotD("j", (stdir[0]), false);
+
 
             if (pointFlag) {
                 startOutput = stpos[0];
@@ -225,47 +264,72 @@ namespace Saturn
             }
         }
 
-        Vector2 PredictPass() 
+        int tick = 0;
+
+        
+
+        public KalmanVector2? ts;
+        
+        void PredictPass() 
         {
-            Vector2 predict = smpos[0];
+            Vector2 check1 = smpos[0];
 
-            if (frameShift > 0f) {
-                nonconf = (pflag && ((emergency > 0) || (pressure[0] == 0 && Vector2.Distance(dir[0], dir[1] + ddir[1]) > (vel[0] / 5))));
+            if (frameShift > 0f && kf != null) {
+                nonconf = ((tabletType == 1 || tabletType == 2 || tabletType == 5) && ((emergency > 0) || (pressure[0] == 0 && Vector2.Distance(dir[0], dir[1] + ddir[1]) > (vel[0] / 8))));
+                
+                check1 = kf.Update(smpos[0], this);
+         //       check2 = ts!.Update2(smpos[0], this);
 
-                if (kf != null) {
-                    predict = kf.Update(smpos[0], this);
-
-                    if (tabletType == 1) {
-                        float fact = 0f;
-                        if (!nonconf) {
-                            float fac = Smoothstep(Vector2.Distance(dir[0], dir[2]), 2.5f, 7.5f);
-                            predict = Vector2.Lerp(predict, smpos[0] + dir[0] + ddir[0], fac);
-                            
-                            fact = fac * Smoothstep(Math.Abs(jerk[0]) + (Math.Abs(accel[0]) / 2.0f), 5.0f, 20.0f);
-                            predict += fact * (ddir[0] - ddir[1]);
-                        }
-
-                        predict += (smpos[0] - predict) * (1f - frameShift);
-                        
-                        if (!nonconf && Vector2.Distance(dir[0], dir[2]) > Vector2.Distance(dir[0], dir[1]) && vel[0] > 20.0f) {
-                            Vector2 x1 = Trajectory(dir[0], dir[1], dir[2], 2.0f + frameShift);
-                            float f1 = Smoothstep(vel[0] + (accel[0] * spro((vel[0] + Math.Abs(accel[0])) / 25.0f)), 20.0f, 40.0f) * Smoothstep(Vector2.Distance(dir[0], dir[2]), 10.0f, 30.0f);
-
-                            predict = Vector2.Lerp(predict, smpos[0] + x1, Math.Max(0.0f, 0.75f * f1));
-
-                            Vector2 x2 = Trajectory((dir[0] + dir[1]) * 0.5f, (dir[2] + dir[3]) * 0.5f, (dir[4] + dir[5]) * 0.5f, 2.25f + 0.5f * frameShift);   // https://www.desmos.com/calculator/oecxkq2eue
-                            float f2 = Smoothstep(vel[0] + accel[0], 10.0f, 40.0f) * Smoothstep(Vector2.Distance(dir[0], dir[2]), 3.0f, 20.0f) * Smoothstep(Math.Abs(accel[0]) + Math.Abs(jerk[0]), 50.0f, 10.0f);
-
-                            if (DotNorm(dir[0], dir[5], 0.0f) > 0.9f && DotNorm(ddir[0], ddir[5], 0.0f) > 0.9f) {
-                                predict = Vector2.Lerp(predict, smpos[0] + x2, Math.Max(0.0f, 0.9f * (f2 - f1)));
-                            }                                
-                        }
-                    }
+                if (!nonconf) {
+                        float fac = Smoothstep(Vector2.Distance(dir[0], dir[2]), 5.0f, 0.0f) * Smoothstep(vel[0], 0.0f, 5.0f);
+        //                float faca = Smoothstep(Vector2.Distance(dir[0], dir[2]), 5.0f, 0.0f) * Smoothstep(vel[0], 0.0f, 5.0f);
+                        check1 = Vector2.Lerp(check1, Vector2.Lerp(smpos[0], crpos[0], 0.45f) + dir[0], fac);
+         //               check2 = Vector2.Lerp(check2, Vector2.Lerp(smpos[0], capos[0], 0.45f) + dir[0], faca);
                 }
-            }
 
-            return predict;
+
+                if ((tabletType == 1 || tabletType == 2 || tabletType == 4) && !nonconf && Vector2.Distance(dir[0], dir[2]) > Vector2.Distance(dir[0], dir[1]) && vel[0] > 20.0f) {
+                    float frame1 = (tabletType == 1) ?
+                    3.0f + 0.075f * Smoothstep(jerk[0], 20f, 50f) - 0.05f * Smoothstep(jerk[0], -20f, -50f):
+                    3.0f;
+                    Vector2 x1 = Trajectory(dir[0], dir[1], dir[2], frame1);
+            //        float frame1a = (tabletType == 1) ?
+           //         3.0f + 0.075f * Smoothstep(jerk[0], 20f, 50f) - 0.05f * Smoothstep(jerk[0], -20f, -50f):
+          //          3.0f;
+             //       Vector2 x1a = Trajectory(dir[0], dir[1], dir[2], frame1a);
+                    float f1 = Smoothstep(vel[0] + Vector2.Distance(dir[0], dir[2]), 0.0f, 100.0f) * Smoothstep(((dir[0] - dir[1]) + (dir[1] - dir[2])).Length(), 10.0f, 50.0f);
+             //       float f1a = Smoothstep(vel[0] + Vector2.Distance(dir[0], dir[2]), 0.0f, 100.0f) * Smoothstep(((dir[0] - dir[1]) + (dir[1] - dir[2])).Length(), 10.0f, 50.0f);
+
+                    check1 = Vector2.Lerp(check1, Vector2.Lerp(smpos[0], crpos[0], 0.575f - 0.025f * Smoothstep(vel[0] + Math.Abs(accel[0]) + Math.Abs(jerk[0]), 0.0f, 250.0f)) + x1, Math.Max(0.0f, (0.725f + 0.025f * Smoothstep(vel[0] + Math.Abs(accel[0]) + Math.Abs(jerk[0]), 50.0f, 150.0f)) * f1));
+             //       check2 = Vector2.Lerp(check2, Vector2.Lerp(smpos[0], capos[0], 0.575f - 0.025f * Smoothstep(vel[0] + Math.Abs(accel[0]) + Math.Abs(jerk[0]), 0.0f, 250.0f)) + x1a, Math.Max(0.0f, (0.725f + 0.025f * Smoothstep(vel[0] + Math.Abs(accel[0]) + Math.Abs(jerk[0]), 50.0f, 150.0f)) * f1a));
+
+                    if (DotNorm(dir[0], dir[5], 0.0f) > 0.9f && DotNorm(ddir[0], ddir[5], 0.0f) > 0.9f) {
+                        Vector2 x2 = Trajectory((dir[0] + dir[1]) * 0.5f, (dir[2] + dir[3]) * 0.5f, (dir[4] + dir[5]) * 0.5f, 2.75f); 
+                        float f2 = Smoothstep(vel[0] + Math.Abs(accel[0]), 0.0f, 100.0f) * Smoothstep(vel[0] + Vector2.Distance(dir[0], dir[1]), 10.0f, 30.0f) * Smoothstep(Vector2.Distance(dir[0], dir[2]), 3.0f, 20.0f) * Smoothstep(Math.Abs(accel[0]) + Math.Abs(jerk[0]), 25.0f, 10.0f);
+                //        float f2a = Smoothstep(vel[0] + Math.Abs(accel[0]), 0.0f, 100.0f) * Smoothstep(vel[0] + Vector2.Distance(dir[0], dir[1]), 10.0f, 30.0f) * Smoothstep(Vector2.Distance(dir[0], dir[2]), 3.0f, 20.0f) * Smoothstep(Math.Abs(accel[0]) + Math.Abs(jerk[0]), 25.0f, 10.0f);
+                        check1 = Vector2.Lerp(check1, Vector2.Lerp(smpos[0], crpos[0], 0.0f) + x2, Math.Max(0.0f, 0.5f * (f2 - f1)));
+             //           check2 = Vector2.Lerp(check2, Vector2.Lerp(smpos[0], capos[0], 0.0f) + x2, Math.Max(0.0f, 0.5f * (f2a - f1a)));
+                    }                                
+                }
+
+                InsertAtFirst(crpos, check1);
+                InsertAtFirst(crdir, crpos[0] - crpos[1]);
+           //     InsertAtFirst(capos, check2);
+           //     InsertAtFirst(cadir, capos[0] - capos[1]);
+
+                check1 += (smpos[0] - check1) * (1f - frameShift);
+           //     check2 += (smpos[0] - check2) * (1f - frameShift);
+     
+            }
+            InsertAtFirst(prpos, check1);
+            InsertAtFirst(prdir, prpos[0] - prpos[1]);
+
+            if (tabletType == 1 && Vector2.Distance(prpos[0], pos[0]) > 500f + vel[0]) {
+           //     Console.WriteLine("?");
+                emergency = 4;
+            }
         }
+
 
         void DAC() 
         {
@@ -280,8 +344,8 @@ namespace Saturn
                 stpos[0] = Vector2.Lerp(stpos[0], prpos[0], adjdWeight);
             }
             else {
-                InsertAtFirst(stdir, dir[0]);
-                InsertAtFirst(stpos, pos[0]);
+                InsertAtFirst(stdir, prdir[0]);
+                InsertAtFirst(stpos, prpos[0]);
                 stpos[0] = Vector2.Lerp(stpos[0], prpos[0], adjdWeight);
             }
         }
@@ -322,7 +386,7 @@ namespace Saturn
 
             if (aResponse > 0f) {
                 float aDist = Vector2.Distance(smoothOutput, adaptOutput);
-                aMod = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * MathF.Pow(Smoothstep(aDist, 2500 * aResponse, (500 * aResponse) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 25 * areaScale), 3.0f) * DotNorm(ddir[0], dir[0], 0); // :)
+                aMod = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * MathF.Pow(Smoothstep(aDist, 2500 * aResponse, (500 * aResponse) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]), 10 * areaScale, 25 * areaScale), 3.0f) * DotNorm(ddir[0], dir[0], 0);
             }
 
             float weight = Math.Clamp(1 - aMod, 0, 1);
@@ -341,12 +405,16 @@ namespace Saturn
 
         void ResetValues(Vector2 p) 
         {
+            tick = 0;
             kf = new KalmanVector2(p, this);
-            pos = Enumerable.Repeat(p, pos.Length).ToArray();
-            stpos = Enumerable.Repeat(p, stpos.Length).ToArray();
-            smpos = Enumerable.Repeat(p, smpos.Length).ToArray();
-            prpos = Enumerable.Repeat(p, prpos.Length).ToArray();
-            fipos = Enumerable.Repeat(p, fipos.Length).ToArray();
+            ts = new KalmanVector2(p, this);
+            pos = Enumerable.Repeat(p, HMAX).ToArray();
+            stpos = Enumerable.Repeat(p, HMAX).ToArray();
+            smpos = Enumerable.Repeat(p, HMAX).ToArray();
+            prpos = Enumerable.Repeat(p, HMAX).ToArray();
+            crpos = Enumerable.Repeat(p, HMAX).ToArray();
+            capos = Enumerable.Repeat(p, HMAX).ToArray();
+            fipos = Enumerable.Repeat(p, HMAX).ToArray();
             latestReport = runningStopwatch.Elapsed;
             tOffset = 0;
         }
@@ -402,6 +470,33 @@ namespace Saturn
 
             return v3 + t * vel + 0.5f * t * t * accel;
         }
+
+        public void IDTablet(string name, ref int tabletType) {
+            Identify(name, ref tabletType);
+          /*  Log.Write("Saturn", "Tablet: " + name);
+            switch (tabletType) {
+                case 1:
+                    Log.Write("Saturn", "Prediction is enhanced heavily.");
+                    Log.Write("Saturn", "Press/lift bugging is mitigated.");
+                break;
+                case 2:
+                    Log.Write("Saturn", "Prediction is enhanced.");
+                    Log.Write("Saturn", "Press/lift bugging is (hopefully) mitigated.");
+                break;
+                case 3:
+                    Log.Write("Saturn", "Prediction is enhanced.");
+                break;
+                case 4:
+                    Log.Write("Saturn", "Prediction is enhanced.");
+                break;
+                case 5:
+                    Log.Write("Saturn", "Press/lift bugging is (hopefully) mitigated.");
+                break;
+                default:
+                    Log.Write("Saturn", "No changes to be made.");
+                break;
+            }*/
+        }
         
         public string name;
         public int tabletType;
@@ -410,6 +505,10 @@ namespace Saturn
         public Vector2[] ddir = new Vector2[HMAX];
         public Vector2[] fipos = new Vector2[HMAX];
         public Vector2[] prpos = new Vector2[HMAX];
+        public Vector2[] crpos = new Vector2[HMAX];
+        public Vector2[] crdir = new Vector2[HMAX];
+        public Vector2[] capos = new Vector2[HMAX];
+        public Vector2[] cadir = new Vector2[HMAX];
         public Vector2[] prdir = new Vector2[HMAX];
         public Vector2[] stpos = new Vector2[HMAX];
         public Vector2[] stdir = new Vector2[HMAX];
@@ -458,7 +557,7 @@ namespace Saturn
         public int wireCode;
         public float adjDacOuter;
         public float updateTime;
-        public bool wireFlag, pointFlag, wireAdjustFlag, eflag, pflag, nonconf;
+        public bool wireFlag, pointFlag, wireAdjustFlag, eflag, nonconf;
         public float Frequency;
     }
 }
