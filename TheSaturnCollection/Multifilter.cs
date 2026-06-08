@@ -151,7 +151,7 @@ namespace Saturn
         }
         public float _xMod;
 
-        [BooleanProperty("Interpolation (Important)", ""), DefaultPropertyValue(true), ToolTip
+        [BooleanProperty("Interpolation", ""), DefaultPropertyValue(true), ToolTip
         (
             "Enables interpolation.\n" +
             "If this is disabled, no settings below this will have an effect."
@@ -184,7 +184,7 @@ namespace Saturn
             "Uses a Kalman filter that considers acceleration instead of just position and velocity.\n" +
             "Because of this, it has far less average position error under movement than what is seen in Temporal Resampler.\n" +
             "Beyond that, by default on certain tablets the filter's parameters are tuned for better accuracy.\n" +
-            "Does nothing if sub-value is 0."
+            "Has no effect if sub-value is 0."
         )]
         public float frameShift
         { 
@@ -192,18 +192,6 @@ namespace Saturn
             get => _frameShift;
         }
         public float _frameShift;
-
-        [Property("Prediction Sub-Value"), DefaultPropertyValue(1f), ToolTip
-        (
-            "Does different things based on the time of day. (actually the tablet detected)\n" +
-            "1 is default behavior. Does nothing if prediction ratio is 0."
-        )]
-        public float pSubVal
-        { 
-            set => _pSubVal = Math.Clamp(value, 0.0f, 1.0f);
-            get => _pSubVal;
-        }
-        public float _pSubVal;
 
         [Property("Expected Milliseconds Per Report"), DefaultPropertyValue(0.0f), ToolTip
         (
@@ -219,11 +207,27 @@ namespace Saturn
 
         [BooleanProperty("Tablet-Specific Tweaks", ""), DefaultPropertyValue(true), ToolTip
         (
-            "If applicable, will change certain behaviors for certain tablets.\n" +
+            "If applicable, will change behavior for the tablet.\n" +
             "This inlcudes things like non-default dynamic prediction parameters for improved accuracy and preventing bugs.\n" +
             "Don't disable unless you have a good reason to."
         )]
-        public bool tabletToggle { set; get; }    
+        public bool tabletToggle { set; get; }
+
+        [Property("Prediction Sub-Value"), DefaultPropertyValue(1.0f), ToolTip
+        (
+            "Possible range: 0.0 - 1.0, default 1.0\n\n" +
+            "Only has an effect if a tweak-applicable tablet is detected.\n" +
+            "Provides some additional smoothing between sensor position and predicted position.\n" +
+            "In most cases, this isn't really necessary.\n" +
+            "Exact function depends on tablet detected.\n" +
+            "1.0 results in default behavior, 0.0 disables prediction."
+        )]
+        public float pSubVal
+        { 
+            set => _pSubVal = Math.Clamp(value, 0.0f, 1.0f);
+            get => _pSubVal;
+        }
+        public float _pSubVal;
 
         protected override void ConsumeState()
         {
@@ -242,9 +246,9 @@ namespace Saturn
                     return;
                 }
 
-                int wire = filter!.HandleConsume(report);
+                filter!.HandleConsume(report);
 
-                if (wire == 1) {
+                if (filter.wireFlag) {
                     UpdateState();
                 }
 

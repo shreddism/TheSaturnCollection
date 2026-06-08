@@ -13,6 +13,7 @@ namespace Saturn
         public static Vector2 WireMultAdjust(Vector2 a, float be, float br, bool w) => w ? a * Math.Clamp(br / be, 0, 1.5f) : a;
         public static Vector2 MinLength(Vector2 a, Vector2 b) => a.LengthSquared() <= b.LengthSquared() ? a : b;
         public static Vector2 MaxLength(Vector2 a, Vector2 b) => a.LengthSquared() >= b.LengthSquared() ? a : b;
+        public static Vector2 Norm(Vector2 a) => a != Vector2.Zero ? Vector2.Normalize(a) : Vector2.Zero;
         public static float Default(float a, float b) => float.IsFinite(a) ? a : b;
         public static float WireMultAdjust(float a, float be, float br, bool w) => w ? a * Math.Clamp(br / be, 0, 1.5f) : a;
         public static float WirePowAdjust(float a, float be, float br, bool w) => w ? MathF.Pow(a, Math.Max(be / br, 0.66f)) : a;
