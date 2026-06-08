@@ -196,7 +196,7 @@ namespace Saturn
         [Property("Expected Milliseconds Per Report"), DefaultPropertyValue(0.0f), ToolTip
         (
             "Has no effect if set to 0.\n" +
-            "You should know what you are doing if you change this from 0.\n"
+            "You should know what you are doing if you change this from 0."
         )]
         public float msOverride
         { 
