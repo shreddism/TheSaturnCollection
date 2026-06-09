@@ -39,11 +39,11 @@ namespace Saturn
             DFC_TOOLTIP +
             "Possible range: 0.0 - any, default 1.0\n\n" +
             "This decides the behavior of the filter.\n" +
-            "If above 1, it amplifies movement outside the radius and diminishes movement inside of it,\n" +
+            "If above 1, it amplifies movement the further from the center the cursor gets,\n" +
             "rounding the tablet area out.\n" + 
-            "If below 1, it diminishes movement outside the radius and amplifies movement inside of it,\n" +
+            "If below 1, it diminishes movement the further from the center the cursor gets,\n" +
             "rounding the display area out.\n" +
-            "Useful values probably won't be beyond the range of 0.5 - 2.0."
+            "Useful values probably won't be beyond the range of 0.5 - 2."
             )]
         public float dPower
         {
@@ -95,25 +95,35 @@ namespace Saturn
             if (value is ITabletReport report) {
                 outputMode = GetOutputMode();
                 if (outputMode.Type == OutputType.absolute) {
-                    displayCenter = GetDisplayCenter();
-                    displayArea = GetDisplayArea();
-                    edgeLengths = displayArea * 0.5f;
-                    Vector2 dist = report.Position - displayCenter;
-                    dist.X /= xDiv;
-                    dist.Y /= yDiv;
-                    float ratio = dist.Length() / threshold;
+                    if ((dPower != 1f) && (dPower != 0f) && (yDiv != 0f) && (xDiv != 0f)) {
+                        displayCenter = GetDisplayCenter();
+                        displayArea = GetDisplayArea();
+                        edgeLengths = displayArea * 0.5f;
+                        Vector2 dist = report.Position - displayCenter;
+                        dist.X /= xDiv;
+                        dist.Y /= yDiv;
+                        float ratio = dist.Length() / threshold;
+                        float low = 1.0f - MathF.Pow(1.0f - ratio, (1.0f / dPower));
+                        float high = MathF.Pow(ratio, dPower);
+                        float scale = ratio / MathF.Min(dPower, 1.0f);
 
-                    if (ratio >= 1.0f)
-                        ratio = MathF.Pow(ratio, dPower);
-                    else
-                        ratio = float.Lerp(1.0f - MathF.Pow(1.0f - ratio, (1.0f / dPower)), MathF.Pow(ratio, dPower), MathF.Min(ratio * MathF.Min(dPower, 1.0f), 1.0f));
-
-                    Vector2 output = (Default(Vector2.Normalize(dist), Vector2.Zero) * ratio * threshold);
-                    output.X *= xMul;
-                    output.Y *= yMul;
-                    output += displayCenter;
-                    output = Vector2.Clamp(output, displayCenter - edgeLengths, displayCenter + edgeLengths);
-                    report.Position = output;
+                        if (ratio >= 1.0f) {
+                            ratio = high;
+                        }
+                        else {
+                            ratio = float.Lerp(low, high, scale);
+                            if (dPower > 1.0f) {
+                                ratio = MathF.Max(ratio, float.Lerp(low, high, MathF.Pow(scale, dPower)));
+                            }
+                        }
+                    
+                        Vector2 output = (Default(Vector2.Normalize(dist), Vector2.Zero) * ratio * threshold);
+                        output.X *= xMul;
+                        output.Y *= yMul;
+                        output += displayCenter;
+                        output = Vector2.Clamp(output, displayCenter - edgeLengths, displayCenter + edgeLengths);
+                        report.Position = output;
+                    }
                 }
             }
             Emit?.Invoke(value);

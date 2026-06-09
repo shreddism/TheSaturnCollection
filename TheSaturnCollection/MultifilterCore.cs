@@ -15,7 +15,7 @@ namespace Saturn
         public MultifilterCore(Multifilter m) 
         {
             frameShift = m.frameShift;
-            pSubVal = m.pSubVal;
+     //       pSubVal = m.pSubVal;
             reverseSmoothing = m.reverseSmoothing;
             wireMode = m.wireMode;
             rInner = m.rInner;
@@ -244,7 +244,7 @@ namespace Saturn
         {
             Vector2 predict = smpos[0];
 
-            if (frameShift > 0f && pSubVal > 0f && kf != null) {
+            if (frameShift > 0f && kf != null) {
                 nonconf = ((tabletType == 1 || tabletType == 2 || tabletType == 5) && ((emergency > 0) || (pressure[0] == 0 && Vector2.Distance(dir[0], dir[1] + ddir[1]) > (vel[0] / 8))));
                 
                 predict = kf.Update(smpos[0], this);
@@ -282,6 +282,10 @@ namespace Saturn
                     }
                 }
 
+                if (pointFlag && emergency > 0) {
+                    predict = smpos[0];
+                }
+
                 InsertAtFirst(crpos, predict);
                 InsertAtFirst(crdir, crpos[0] - crpos[1]);
 
@@ -290,7 +294,7 @@ namespace Saturn
                 InsertAtFirst(prpos, predict);
                 InsertAtFirst(prdir, prpos[0] - prpos[1]);
 
-                if (tabletType != 0) {
+                /*if (tabletType != 0) {
                     float fac = (tabletType == 3 || tabletType == 5) ? 
                         1f - 0.5f * (pSubVal * (Smoothstep(accel[0], -250, -0))):
                         1f - 0.1f * ((1 - pSubVal) * (Smoothstep(accel[0], -250, -0)));
@@ -303,7 +307,10 @@ namespace Saturn
                 else {
                     svpos = prpos;
                     svdir = prdir;
-                }
+                }*/
+
+                svpos = prpos;
+                svdir = prdir;
 
             }
             else {
@@ -369,13 +376,15 @@ namespace Saturn
             }
 
             float aMod = 0;
+            float weight = 1;
 
             if (aResponse > 0f) {
                 float aDist = Vector2.Distance(smoothOutput, adaptOutput);
-                aMod = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * MathF.Pow(Smoothstep(aDist, 3500 * aResponse, (500 * MathF.Sqrt(aResponse)) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]) / spro(vel[0] / 250), 10 * areaScale, 50 * areaScale), 2.5f + aResponse * areaScale) * DotNorm(ddir[0], dir[0], 0);
+                aMod = (1 + MathF.Log10(Math.Max(aResponse, 1f))) * MathF.Pow(Smoothstep(aDist, 3500 * aResponse * areaScale, (500 * MathF.Sqrt(aResponse * areaScale)) - 1.0f) * Smoothstep(accel[0] + Math.Max(0, jerk[0]) / spro(vel[0] / 250), 10 * areaScale, 50 * areaScale), 2.5f + aResponse * areaScale) * DotNorm(ddir[0], dir[0], 0);
+                weight = Math.Clamp(1 - aMod, 0, 1);
+                weight *= 1.0f - 0.75f * (Smoothstep(aDist, 1000 * areaScale, 5000 * areaScale) * Smoothstep(vel[0] + accel[0], 250 * areaScale, 500 * areaScale));
             }
 
-            float weight = Math.Clamp(1 - aMod, 0, 1);
             adaptOutput = Vector2.Lerp(adaptOutput, smoothOutput, WireWeightAdjust(weight, expect, updateTime, wireAdjustFlag));
         }
 
@@ -534,7 +543,7 @@ namespace Saturn
         private float arcTar = 0;
         private Vector2 _v1, _v2, _v3;
         private int _floor;
-        public float frameShift, pSubVal, reverseSmoothing, dacOuter;
+        public float frameShift, reverseSmoothing, dacOuter;
         public string wireMode;
         public float rInner, stockWeight, smoothDist, sepMult, aResponse, msOverride, areaScale, xMod;
         public bool tabletToggle;

@@ -175,7 +175,6 @@ namespace Saturn
             "Wire - Interp"
         }; 
         public string? _wireMode;
-        private HPETDeltaStopwatch updateStopwatch = new HPETDeltaStopwatch();
 
         [Property("Prediction Ratio"), DefaultPropertyValue(0.0f), ToolTip
         (
@@ -183,8 +182,7 @@ namespace Saturn
 
             "Uses a Kalman filter that considers acceleration instead of just position and velocity.\n" +
             "Because of this, it has far less average position error under movement than what is seen in Temporal Resampler.\n" +
-            "Beyond that, by default on certain tablets the filter's parameters are tuned for better accuracy.\n" +
-            "Has no effect if sub-value is 0."
+            "Beyond that, by default on certain tablets the filter's parameters and other values are tuned for better accuracy."
         )]
         public float frameShift
         { 
@@ -212,22 +210,6 @@ namespace Saturn
             "Don't disable unless you have a good reason to."
         )]
         public bool tabletToggle { set; get; }
-
-        [Property("Prediction Sub-Value"), DefaultPropertyValue(1.0f), ToolTip
-        (
-            "Possible range: 0.0 - 1.0, default 1.0\n\n" +
-            "Only has an effect if a tweak-applicable tablet is detected.\n" +
-            "Provides some additional smoothing between sensor position and predicted position.\n" +
-            "In most cases, this isn't really necessary.\n" +
-            "Exact function depends on tablet detected.\n" +
-            "1.0 results in default behavior, 0.0 disables prediction."
-        )]
-        public float pSubVal
-        { 
-            set => _pSubVal = Math.Clamp(value, 0.0f, 1.0f);
-            get => _pSubVal;
-        }
-        public float _pSubVal;
 
         protected override void ConsumeState()
         {

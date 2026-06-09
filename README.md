@@ -119,17 +119,20 @@ Using tools that plotted out the live position error onto a graph, I found good 
 
 I tested values on a PTK-470 and a CTL-480. My CTL-480 pen drops the PTK-470 down to 200hz, so I thought it would be better than nothing to use that for 200hz tablets. The Kalman filter parameters that work best differ wildly between the two tablets, however I haven't been able to make a clear improvement for the 200hz PTK-470 than just using the values from the 300hz tune. At the very least there's no obvious thing that's hurting it.
 
-On Intuos Pro (200/300hz, 200lines/mm) tablets, using the Trajectory function to extrapolate the direction between reports themselves is reliable enough to give an estimate of the next direction in certain scenarios. This never completely overwrites the Kalman filter's prediction, as combining them gives less error than just trusting one or the other. This was the point of the Velocity Interpolation multifilter, but now that its purpose has been merged, it is now deleted. This grants double-digit percent gains in accuracy and allows me to set parameters that favor stability over accel-responsiveness in the Kalman filter, as the trajectory methods would take over anyway if needed. The values on 300hz are different here than on 200hz.
+On Intuos Pro (200/300hz, 200lines/mm) tablets, using the Trajectory function to extrapolate the direction between reports themselves is reliable enough to give an estimate of the next direction in certain scenarios. This never completely overwrites the Kalman filter's prediction, as combining them gives less error than just trusting one or the other. This was the point of the Velocity Interpolation multifilter, but now that its purpose has been merged, it's now been deleted. This grants double-digit percent gains in accuracy and allows me to set parameters that favor stability over accel-responsiveness in the Kalman filter, as the trajectory methods would take over anyway if needed. The values on 300hz are different here than on 200hz.
 
-PTK-x70 tablets are known (source: me) to give funny unreliable position reports on press/lift (which is a PRESSURE thing, not a TILT thing, to prevent misreads, and it's a HARDWARE feature that cannot be disabled in OTD) that messes up all prediction.
-This sticks a control rod in what would be a prediction disaster.
+PTK-x70 tablets are known (source: me) to give funny unreliable position reports on press/lift (which is a PRESSURE thing, not a TILT thing, to prevent misreads, and it's a HARDWARE feature that cannot be disabled in OTD) that messes up all prediction. The filter just smooths its output to filtered sensor position for a few reports after this out of necessity.
+There are other Wacom tablets that apparently have similar behaviors, so they're given similar failsafes.
 
 #### Frequency
 On Windows, setting Frequency to anything but something that results in an integer-millisecond update interval (so 1000 or 500 in edge cases) will slam the CPU.
 If your CPU can handle it, this will be fine, but system timing when it comes to the "Wire" setting may be inaccurate (untested).
 Any reasonable frequencies work fine on Linux without increasing CPU, so you can just set it to 2x or 4x your display refresh rate without worry.
 Support for uber-high frequencies should be decent.
-If you can change frequencies by accepting the CPU usage
+If you can change frequencies anyhow, you can control filter frequency when using interp filtering. This can make the difference between accel response looking either natural or janky, depending on your display.
+
+# Area Rounding
+A sort of "Circular Area"-lite. You can make its effects as extreme or as subtle as you want with configuration. Most things are explained in the tooltips. The modifiers for input and output being different from each other allows you to set your own curve.
 
 # Custom Reset Absolute Mode
 You may need to apply and save multiple times for settings to apply properly.
