@@ -1,13 +1,19 @@
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
-namespace Saturn {
-    public static class Utils {
+namespace Saturn 
+{
+    public static class Utils 
+    {   
+        public const int HMAX = 6;
+        public const int KALMAN_STATES = 2;
+    
         public static Vector2 Default(Vector2 a, Vector2 b) => vec2IsFinite(a) ? a : b;      
         public static Vector2 WireMultAdjust(Vector2 a, float be, float br, bool w) => w ? a * Math.Clamp(br / be, 0, 1.5f) : a;
         public static Vector2 MinLength(Vector2 a, Vector2 b) => a.LengthSquared() <= b.LengthSquared() ? a : b;
         public static Vector2 MaxLength(Vector2 a, Vector2 b) => a.LengthSquared() >= b.LengthSquared() ? a : b;
-
+        public static Vector2 Norm(Vector2 a) => a != Vector2.Zero ? Vector2.Normalize(a) : Vector2.Zero;
         public static float Default(float a, float b) => float.IsFinite(a) ? a : b;
         public static float WireMultAdjust(float a, float be, float br, bool w) => w ? a * Math.Clamp(br / be, 0, 1.5f) : a;
         public static float WirePowAdjust(float a, float be, float br, bool w) => w ? MathF.Pow(a, Math.Max(be / br, 0.66f)) : a;
@@ -15,15 +21,31 @@ namespace Saturn {
         public static float DotNorm(Vector2 a, Vector2 b) => Vector2.Dot(Vector2.Normalize(a), Vector2.Normalize(b));
         public static float DotNorm(Vector2 a, Vector2 b, float x) => (a != Vector2.Zero && b != Vector2.Zero) ? Vector2.Dot(Vector2.Normalize(a), Vector2.Normalize(b)) : x;
 
-        public static float XWA(float be, float br, bool b, float ce, float cr, bool c) {
-            if (b) return Math.Clamp(br / be, 0.0f, 1.5f);
-            if (c) return Default(cr / ce, 1.0f);
+        public static float XWA(float be, float br, bool b, float ce, float cr, bool c) 
+        {
+            if (b) 
+                return Math.Clamp(br / be, 0.0f, 1.5f);
+            if (c) 
+                return Default(cr / ce, 1.0f);
             return 1.0f;
         }
 
         public static float UAdjust(float a, float b) => 1 - MathF.Pow(1 - a, b);
+
+        public static double spro(double x) => Math.Log(x + 1) + 1;
+        public static float spro(float x) => MathF.Log(x + 1) + 1;
+
+        public static float DSFunction(float dist, float smoothDist, float halfSmoothDist) 
+        {
+            if (dist >= smoothDist) 
+                return dist - halfSmoothDist;
+
+            float x = (dist / smoothDist);
+            return x * x * halfSmoothDist;
+        }
         
         public static bool vec2IsFinite(Vector2 vec) => float.IsFinite(vec.X) & float.IsFinite(vec.Y);
+
 
         public static void InsertAtFirst<T>(T[] arr, T element)
         {
@@ -41,6 +63,16 @@ namespace Saturn {
             x = Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
             return x * x * (3.0f - 2.0f * x);
         }
+
+        public static double Smoothstep(double x, double start, double end)
+        {
+            x = Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
+            return x * x * (3.0f - 2.0f * x);
+        }
+
+        public static float Step(float x, float start, float end) => Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
+
+        public static double Step(double x, double start, double end) => Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
 
         public static float Powstep(float x, float start, float end, float p)
         {
@@ -67,5 +99,93 @@ namespace Saturn {
             float sine = MathF.Sin(a);
             return new Vector2((cosine * p.X) - (sine * p.Y), (sine * p.X) + (cosine * p.Y));
         }
+
+        public static void Identify(string name, ref int ID) 
+        {
+            switch (name) {
+                case "Wacom PTK-470":
+                case "Wacom PTK-670":
+                case "Wacom PTK-870":
+                    ID = 1;
+                break;
+                case "Wacom PTH-460":
+                case "Wacom PTH-660":
+                case "Wacom PTH-860":
+                    ID = 2;
+                break;
+                case "Wacom CTL-480":
+                case "Wacom CTL-680":
+                case "Wacom CTH-480":
+                case "Wacom CTH-680":
+                case "Wacom CTL-472":
+                case "Wacom CTL-672":
+                case "Wacom CTL-471":
+                case "Wacom CTL-671":
+                case "Wacom CTL-470":
+                case "Wacom CTH-470":
+                case "Wacom CTH-670":
+                case "Wacom CTE-460":
+                case "Wacom CTE-660":
+                case "Wacom CTH-461":
+                case "Wacom CTH-661":
+                case "Wacom CTL-460":
+                case "Wacom CTH-460":
+                case "Wacom CTL-660":
+                case "Wacom MTE-450":
+                case "Wacom CTE-450":
+                case "Wacom CTE-650":
+                    ID = 3;
+                break;
+                case "Wacom PTH-451":
+                case "Wacom PTH-651":
+                case "Wacom PTH-851":
+                case "Wacom PTH-450":
+                case "Wacom PTK-450":
+                case "Wacom PTH-650":
+                case "Wacom PTK-650":
+                case "Wacom PTH-850":
+                case "Wacom PTK-440":
+                case "Wacom PTK-540WL":
+                case "Wacom PTK-640":
+                case "Wacom PTK-840":
+                case "Wacom PTK-1240":
+                case "Wacom PTZ-430":
+                case "Wacom PTZ-431W":
+                case "Wacom PTZ-630":
+                case "Wacom PTZ-631W":
+                case "Wacom PTZ-930":
+                case "Wacom PTZ-1230":
+                case "Wacom PTZ-1231W":
+                    ID = 4;
+                break;
+                case "Wacom CTL-4100":
+                case "Wacom CTL-4100WL":
+                case "Wacom CTL-6100":
+                case "Wacom CTL-6100WL":
+                case "Wacom CTL-490":
+                case "Wacom CTL-690":
+                case "Wacom CTH-490":
+                case "Wacom CTH-690":
+                    ID = 5;
+                break;
+                default:
+                    ID = 0;
+                break;
+            }
+        }
+
+        public static void PlotD(string c, Vector2 p, bool t) 
+        {
+            Console.Write(c + "x");
+            Console.WriteLine(p.X);
+            Console.Write(c + "y");
+            Console.WriteLine(p.Y * - 1);
+            if (t) {
+                Console.WriteLine("xx");
+                Console.WriteLine("dd");
+            }
+        }
     }
+
+    
 }

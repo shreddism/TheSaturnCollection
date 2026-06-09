@@ -17,14 +17,13 @@ namespace Saturn;
 [PluginName("Custom Reset Absolute Mode")]
 public class CustomResetAbsoluteMode : AbsoluteOutputMode
 {
-    bool bPressFlag = false;
-    bool bReleaseFlag = false;
-
     [Resolved]
     public override IAbsolutePointer? Pointer { set; get; }
 
-    public override void Read(IDeviceReport deviceReport) {
-        if (!initFlag) AttemptInitialization();
+    public override void Read(IDeviceReport deviceReport) 
+    {
+        if (!initFlag) 
+            AttemptInitialization();
 
         bool dropFlag = false;
         if (initFlag) {
@@ -54,22 +53,26 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
         }
     }
 
-    protected override IAbsolutePositionReport Transform(IAbsolutePositionReport report) {
-        if (!initFlag) AttemptInitialization();
+    protected override IAbsolutePositionReport Transform(IAbsolutePositionReport report) 
+    {
+        if (!initFlag) 
+            AttemptInitialization();
 
         bReleaseFlag = CustomResetAbsoluteModeBinding.bReleaseFlag;
         bPressFlag = CustomResetAbsoluteModeBinding.bPressFlag;
-
         CustomResetAbsoluteModeBinding.bAuxFlag = false;
         bool firstSinceDrops = false;
         if (dropsRemaining > 0 && transformCompleteFlag) {
-            if (reportIsFirstAfterConsume) dropsRemaining--;
+            if (reportIsFirstAfterConsume) 
+                dropsRemaining--;
 
             if (dropsRemaining > 0) {
                 report.Position = lastPostTransformInput;
                 return report;
             }
-            else firstSinceDrops = true;
+            else {
+                firstSinceDrops = true;
+            }
         } 
 
         float transformTime = (float)transformStopwatch.Restart().TotalMilliseconds;
@@ -81,15 +84,17 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
         }
     
         bResetCode = CustomResetAbsoluteModeBinding.bResetCode;
-        if ((!bInitFlag) && (((dropsRemaining == 0) && (bPressFlag || bReleaseFlag)))) bInitFlag = true;
+        if ((!bInitFlag) && (((dropsRemaining == 0) && (bPressFlag || bReleaseFlag)))) 
+            bInitFlag = true;
 
-        if (bInitFlag && bPressFlag) resetCode = bResetCode;
+        if (bInitFlag && bPressFlag) 
+            resetCode = bResetCode;
 
-        if (bInitFlag && bReleaseFlag && !tResetFlag) resetCode = 0;
+        if (bInitFlag && bReleaseFlag && !tResetFlag) 
+            resetCode = 0;
 
-        if ((firstSinceDrops) && (resetCode == 0) && (lastResetCode > 0)) {
+        if ((firstSinceDrops) && (resetCode == 0) && (lastResetCode > 0)) 
             resetCode = lastResetCode;
-        }
 
         if (initPersistHandledFlag) { 
             initPersistHandledFlag = false;
@@ -102,18 +107,19 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
             initPersistHandledFlag = true;
         }
 
-        if (resetCode != tempCode) tResetFlag = false;
+        if (resetCode != tempCode) 
+            tResetFlag = false;
 
         persistentResetCode = resetCode;
 
         if (initFlag) {
-            if (resetCode == 1) {
-                
+            if (resetCode == 1) {    
                 UpdateInputPos(new Vector2(
                     report.Position.X / mmScale.X,
                     report.Position.Y / mmScale.Y
                 ));
-                if (lastResetCode != 1) TransformationMatrix = base.CreateTransformationMatrix();
+                if (lastResetCode != 1) 
+                    TransformationMatrix = base.CreateTransformationMatrix();
 
                 BaseTransform(report); 
                 if (!holdingResetFlag ^ (lastResetCode == 2)) {
@@ -132,10 +138,11 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
 
             if (resetCode == 2) {
                 if (!draggingFlag) {
-                    dragHold = Input!.Position;
-
-                    if (tPersistenceCode == 2 || tResetFlag) dragPos = lastPreTransformOutput;      
-                    else dragPos = report.Position;
+                    dragHold = Input.Position;
+                    if (tPersistenceCode == 2 || tResetFlag) 
+                        dragPos = lastPreTransformOutput;      
+                    else 
+                        dragPos = report.Position;
 
                     dragOffset = report.Position - dragPos;
                     draggingFlag = true;
@@ -171,9 +178,9 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                         DragUpdate();
                         TransformationMatrix = base.CreateTransformationMatrix();
                     }
+
                     draggingFlag = false;
                     dragOffset = Vector2.Zero;
-                    
                 } 
             }
 
@@ -184,7 +191,6 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                 ));
                 BaseTransform(report);
                 UpdateOutputPos(report.Position);
-                
                 if (lastResetCode != -1 && tLogInfo) {
                     Log.Write("CustomResetAbsoluteMode", "Setting the centers of both areas to the cursor's position...");
                 }
@@ -213,7 +219,9 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
             }
 
             if (tResetFlag) {
-                if (resetCode != 3) lastResetCode = -3;
+                if (resetCode != 3) 
+                    lastResetCode = -3;
+
                 resetCode = 0;
             }
 
@@ -223,9 +231,10 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                     holdingResetFlag = false;
                 }
 
-                if (!tResetFlag) BaseTransform(report);
-                tResetFlag = false;
+                if (!tResetFlag) 
+                    BaseTransform(report);
 
+                tResetFlag = false;
                 if (lastResetCode != 0 && lastResetCode != -2 && tLogInfo) {
                     Log.Write("CustomResetAbsoluteMode", "Display Area: " + Output);
                     Log.Write("CustomResetAbsoluteMode", "Tablet Area: " + Input);
@@ -244,8 +253,10 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
         return report; 
     }
 
-    protected override void OnOutput(IDeviceReport value) {
-        if (!initFlag) AttemptInitialization();
+    protected override void OnOutput(IDeviceReport value)
+    {
+        if (!initFlag) 
+            AttemptInitialization();
 
         if (initFlag) {
             if ((value is IAuxReport auxReport) && (outputCompleteIgnores > 0)) {
@@ -254,18 +265,20 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                     bInitFlag = true;
                     TransformationMatrix = base.CreateTransformationMatrix();
                 }
+
                 CustomResetAbsoluteModeBinding.bAuxFlag = false;
             }
 
             if (value is ITabletReport report) {
                 if (outputCompleteIgnores > 0) {
-                    if (reportIsFirstAfterConsume) outputCompleteIgnores--;
+                    if (reportIsFirstAfterConsume) 
+                        outputCompleteIgnores--;
 
                     if (bResetCode == 1 || bResetCode == -1) {
-                        Input!.Position = saveInputPosition;
-                        Output!.Position = saveOutputPosition;
+                        Input.Position = saveInputPosition;
+                        Output.Position = saveOutputPosition;
                     }
-                    report.Position = lastPostTransformInput; 
+                    report.Position = lastOutput; 
                 }
                 if (tPixelGridFlag && outputCompleteIgnores == 0 && transformCompleteFlag) {
                     PostProcessingStatUpdate(report.Position);
@@ -276,10 +289,12 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                     if ((!tDynamicMode) || ((Vector2.Distance(checkPos, pos[0]) + (dir[0] + dir[1] + dir[2] + dir[3]).Length() >= 1 / tPixelGridMult) && (pxOutput != outputPos[0]))) {
                         checkPos = pos[0];
                         InsertAtFirst(outputPos, pxOutput);
-                    }
+                    }  
 
                     report.Position = outputPos[0];
                 }
+
+                lastOutput = report.Position;
             }
             
             reportIsFirstAfterConsume = false;
@@ -287,9 +302,79 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
         }
     }
 
-    void PostProcessingStatUpdate(Vector2 input) {
+    void PostProcessingStatUpdate(Vector2 input)
+    {
         InsertAtFirst(pos, input);
         InsertAtFirst(dir, pos[0] - pos[1]);
+    }
+    
+    public void AttemptInitialization()
+    {
+        if (Tablet != null) {
+            mmScale = new Vector2 (Tablet.Properties.Specifications.Digitizer.MaxX / Tablet.Properties.Specifications.Digitizer.Width,
+                                   Tablet.Properties.Specifications.Digitizer.MaxY / Tablet.Properties.Specifications.Digitizer.Height);
+            if (Input != null && Output != null) {
+                initPersistHandledFlag = false;
+                CustomResetAbsoluteModeBinding.bPressFlag = false;
+                CustomResetAbsoluteModeBinding.bReleaseFlag = false;
+                StockMatrix = base.CreateTransformationMatrix();
+                maxDrops = CustomResetAbsoluteModeSettings.tNearProximityDrops;
+                outputCompleteIgnores = maxDrops + 1;
+                stockInput = Input.Position;
+                stockOutput = Output.Position;
+                bInitFlag = false;
+                resetCode = 0;
+                tResetTime = CustomResetAbsoluteModeSettings.tResetTime;
+                tResetCode = CustomResetAbsoluteModeSettings.tResetCode;
+                tTimeProximity = CustomResetAbsoluteModeSettings.tTimeProximity;
+                tPixelGridMult = CustomResetAbsoluteModeSettings.tPixelGridMult;
+                tPixelGridFlag = (tPixelGridMult >= 1.0f);
+                tDynamicMode = CustomResetAbsoluteModeSettings.tDynamicMode;
+                tLogInfo = CustomResetAbsoluteModeSettings.tLogInfo;
+                tResetCode = CustomResetAbsoluteModeSettings.tResetCode;
+                initFlag = true;
+                if (!saveCenterFlag) {
+                    saveInputPosition = stockInput;
+                    saveOutputPosition = stockOutput;
+                    saveCenterFlag = true;
+                }
+
+                tPersistenceCode = CustomResetAbsoluteModeSettings.tPersistenceCode;
+                if (tPersistenceCode == 2) {
+                    Input.Position = saveInputPosition;
+                    Output.Position = saveOutputPosition;
+                    TransformationMatrix = base.CreateTransformationMatrix();
+                }
+            }  
+        }
+    }
+    
+    public void DragUpdate()
+    {   
+        UpdateInputPos(dragHold + new Vector2(dragOffset.X / mmScale.X,
+                                              dragOffset.Y / mmScale.Y));
+            
+        
+    }  
+
+    public void BaseTransform(IAbsolutePositionReport report)
+    {
+        if (transformCompleteFlag) 
+            lastPreTransformOutput = report.Position;
+            
+        base.Transform(report);
+    }
+
+    public void UpdateInputPos(Vector2 position)
+    {
+        Input.Position = position;
+        saveInputPosition = position;
+    }
+
+    public void UpdateOutputPos(Vector2 position)
+    {
+        Output.Position = position;
+        saveOutputPosition = position;
     }
 
     const int HMAX = 4;
@@ -306,6 +391,7 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
     Vector2 dragOffset;
     static Vector2 lastPreTransformOutput;
     static Vector2 lastPostTransformInput;
+    static Vector2 lastOutput;
     Vector2 dragHold;
 
     int maxDrops;
@@ -333,6 +419,9 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
     bool stockResetFlag = false;
 
     int outputCompleteIgnores;
+
+    bool bPressFlag = false;
+    bool bReleaseFlag = false;
     
     static Vector2 holdPos;
     Vector2 mmScale;
@@ -353,74 +442,18 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
     bool tPixelGridFlag;
     bool tDynamicMode;
     bool tLogInfo;
-    
-    public void AttemptInitialization() {
-        if (Tablet != null) {
-            mmScale = new Vector2
-            (
-                Tablet.Properties.Specifications.Digitizer.MaxX / Tablet.Properties.Specifications.Digitizer.Width, 
-                Tablet.Properties.Specifications.Digitizer.MaxY / Tablet.Properties.Specifications.Digitizer.Height
-            );
-            if (Input != null && Output != null) {
-                initPersistHandledFlag = false;
-                CustomResetAbsoluteModeBinding.bPressFlag = false;
-                CustomResetAbsoluteModeBinding.bReleaseFlag = false;
-                StockMatrix = base.CreateTransformationMatrix();
-                maxDrops = CustomResetAbsoluteModeSettings.tNearProximityDrops;
-                outputCompleteIgnores = maxDrops + 1;
-                stockInput = Input.Position;
-                stockOutput = Output.Position;
-                bInitFlag = false;
-                resetCode = 0;
-                tResetTime = CustomResetAbsoluteModeSettings.tResetTime;
-                tResetCode = CustomResetAbsoluteModeSettings.tResetCode;
-                tTimeProximity = CustomResetAbsoluteModeSettings.tTimeProximity;
-                tPixelGridMult = CustomResetAbsoluteModeSettings.tPixelGridMult;
-                if (tPixelGridMult >= 1.0f) tPixelGridFlag = true;
-                else tPixelGridFlag = false;
-                tDynamicMode = CustomResetAbsoluteModeSettings.tDynamicMode;
-                tLogInfo = CustomResetAbsoluteModeSettings.tLogInfo;
+}
 
-                tResetCode = CustomResetAbsoluteModeSettings.tResetCode;
-                initFlag = true;
-    
-                if (!saveCenterFlag) {
-                    saveInputPosition = stockInput;
-                    saveOutputPosition = stockOutput;
-                    saveCenterFlag = true;
-                }
+[PluginName("Custom Reset Artist Mode"), SupportedPlatform(PluginPlatform.Linux)]
+public class CustomResetLinuxArtistMode : CustomResetAbsoluteMode
+{
+    [Resolved]
+    public IPressureHandler? VirtualTablet { get; set; }
 
-                tPersistenceCode = CustomResetAbsoluteModeSettings.tPersistenceCode;
-                
-                if (tPersistenceCode == 2) {
-                    Input.Position = saveInputPosition;
-                    Output.Position = saveOutputPosition;
-                    TransformationMatrix = base.CreateTransformationMatrix();
-                }
-            }  
-        }
-    }
-    
-    public void DragUpdate() {   
-        UpdateInputPos(dragHold + new Vector2(
-            dragOffset.X / mmScale.X,
-            dragOffset.Y / mmScale.Y
-        ));
-    }  
-
-    public void BaseTransform(IAbsolutePositionReport report) {
-        if (transformCompleteFlag) lastPreTransformOutput = report.Position;
-        base.Transform(report);
-    }
-
-    public void UpdateInputPos(Vector2 position) {
-        Input!.Position = position;
-        saveInputPosition = position;
-    }
-
-    public void UpdateOutputPos(Vector2 position) {
-        Output!.Position = position;
-        saveOutputPosition = position;
+    public override IAbsolutePointer? Pointer
+    {
+        set => throw new NotSupportedException();
+        get => (IAbsolutePointer)(VirtualTablet ?? throw new InvalidOperationException($"{nameof(VirtualTablet)} was not properly injected by DI"));
     }
 }
 
@@ -431,12 +464,13 @@ public class CustomResetAbsoluteModeBinding : IStateBinding
     (
         "Changes what pressing and holding the binding will do."
     )]
-    public string Mode { get; set; } = string.Empty;        // name "Mode" is displayed in GUI
+    public string Mode { get; set; } = string.Empty;
     public static IEnumerable<string> resetModes { get; set; } = new List<string> { "Set Tablet Area Center To Position", "Drag Tablet Area", "Set Both Centers To Position", "Reset To Stock Settings" };
     internal static int bResetCode = 0;
     int resetCodeSetting = 0;
     
-    public void Initialize() {
+    public void Initialize()
+    {
         resetCodeSetting = Mode switch {
             "Reset To Stock Settings" => -2,
             "Set Both Centers To Position" => -1,
@@ -449,9 +483,8 @@ public class CustomResetAbsoluteModeBinding : IStateBinding
 
     public void Press(TabletReference tablet, IDeviceReport report)
     {  
-        if (!initFlag) {
+        if (!initFlag) 
             Initialize();
-        }
         
         bPressFlag = true;
         bReleaseFlag = false;
@@ -461,10 +494,9 @@ public class CustomResetAbsoluteModeBinding : IStateBinding
 
     public void Release(TabletReference tablet, IDeviceReport report)
     {
-        if (!initFlag) {
+        if (!initFlag) 
             Initialize();
-        }
-
+        
         if (resetCodeSetting == bResetCode) {
             bReleaseFlag = true;
             bPressFlag = false;
@@ -576,7 +608,8 @@ public class CustomResetAbsoluteModeSettings : ITool
     public bool logInfo { set; get; }
     internal static bool tLogInfo = DEFAULT_LOG_INFO;
 
-    public bool Initialize() {
+    public bool Initialize()
+    {
         tResetTime = resetTime;
         tTimeProximity = timeProximity;
         tResetMode = resetMode;
@@ -600,7 +633,8 @@ public class CustomResetAbsoluteModeSettings : ITool
         return true;
     }
 
-    public void Dispose() {
+    public void Dispose()
+    {
         tResetTime = DEFAULT_RESET_TIME;
         timeProximity = DEFAULT_TIME_PROXIMITY;
         tResetCode = DEFAULT_RESET_CODE;
