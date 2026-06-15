@@ -16,7 +16,7 @@ namespace Saturn
         int movementAxis;
 
         private Matrix x;
-        public Matrix tx;
+        private Matrix tx;
         private Matrix P;
         private Matrix Q;
         private Matrix tQ;
@@ -122,14 +122,14 @@ namespace Saturn
                 switch (tuneID) {
                     case 1:
                         fac = Smoothstep(v2 / spro(v1 / 10), 3.0, 6.0);
-                        if (filter.pressure[0] > 0 && !filter.nonconf) {
+                        if (!(filter.nonconf || (filter.pressure[0] == 0 && (filter.vel[0] == 0 || filter.vel[1] == 0)))) {
                             tQ.data[0, 0] = 0.1;
                             tQ.data[1, 1] = 0.9 * (1 + fac * 5 * Smoothstep((v1 + v2), 5.0, 50.0));
                             tQ.data[2, 2] = 9 / (1 + fac * 5 * Smoothstep((Smoothstep(v2, 10.0, 50.0) * v1), 10.0, 50.0));
                             tQ.data[3, 3] = 1 * 15.0 * (1 + ((10 * Smoothstep(v1, 0.0, 5.0)) + fac * (12000 * Smoothstep(v2, 5.0, 25.0))) / spro(v1 / 25.0));
                             tR.data[0,0] = 0.00001 - 0.000009 * Math.Pow(Smoothstep((v1 + v2), 0.0, 10.0), 0.5);
-                            tR.data[1,1] = 0.00001;
-                            tR.data[2,2] = 0.00001;
+                            tR.data[1,1] = 1.0 - 0.99999 * Smoothstep(v1 + v2, 0f, 5f);
+                            tR.data[2,2] = 1.0 - 0.99999 * Smoothstep(v2, 0f, 5f);
                         }
                         else {
                             tQ.data[0, 0] = 1;
@@ -143,14 +143,14 @@ namespace Saturn
                     break;
                     case 2:
                         fac = Smoothstep(v2 / spro(v1 / 10), 3.0, 6.0);
-                        if (filter.pressure[0] > 0 && !filter.nonconf) {
+                        if (!(filter.nonconf || (filter.pressure[0] == 0 && (filter.vel[0] == 0 || filter.vel[1] == 0)))) {
                             tQ.data[0, 0] = 0.1;
                             tQ.data[1, 1] = 0.9 * (1 + fac * 5 * Smoothstep((v1 + v2), 5.0, 50.0));
                             tQ.data[2, 2] = 9 / (1 + fac * 5 * Smoothstep((Smoothstep(v2, 10.0, 50.0) * v1), 10.0, 50.0));
                             tQ.data[3, 3] = 1 * 15.0 * (1 + ((10 * Smoothstep(v1, 0.0, 5.0)) + fac * (12000 * Smoothstep(v2, 5.0, 25.0))) / spro(v1 / 25.0));
                             tR.data[0,0] = 0.00001 - 0.000009 * Math.Pow(Smoothstep((v1 + v2), 0.0, 10.0), 0.5);
-                            tR.data[1,1] = 0.00001;
-                            tR.data[2,2] = 0.00001;
+                            tR.data[1,1] = 1.0 - 0.99999 * Smoothstep(v1 + v2, 0f, 5f);
+                            tR.data[2,2] = 1.0 - 0.99999 * Smoothstep(v2, 0f, 5f);
                         }
                         else {
                             tQ.data[0, 0] = 1;
@@ -179,19 +179,19 @@ namespace Saturn
                         tQ.data[2, 2] = 9 / (1 + fac * 5 * Smoothstep((Smoothstep(v2, 10.0, 50.0) * v1), 10.0, 50.0));
                         tQ.data[3, 3] = 1 * 15.0 * (1 + ((10 * Smoothstep(v1, 0.0, 5.0)) + fac * (12000 * Smoothstep(v2, 5.0, 25.0))) / spro(v1 / 25.0));
                         tR.data[0,0] = 0.00001 - 0.000009 * Math.Pow(Smoothstep((v1 + v2), 0.0, 10.0), 0.5);
-                        tR.data[1,1] = 0.00001;
-                        tR.data[2,2] = 0.00001;
+                        tR.data[1,1] = 1.0 - 0.99999 * Smoothstep(v1 + v2, 0f, 5f);
+                        tR.data[2,2] = 1.0 - 0.99999 * Smoothstep(v2, 0f, 5f);
                     break;
                     case 5:
                         fac = Smoothstep(v2 / spro(v1 / 10), 10.0, 20.0);
-                        if (filter.pressure[0] > 0 && !filter.nonconf) {
-                            tQ.data[0, 0] = 0.1;
-                            tQ.data[1, 1] = 1.125 * (1 + fac * 5 * Smoothstep((v1 + v2), 5.0, 50.0));
-                            tQ.data[2, 2] = 22.5 / (1 + fac * 7.5 * Smoothstep((Smoothstep(v2, 10.0, 50.0) * v1), 10.0, 50.0));
-                            tQ.data[3, 3] = (30.0 * (1 + ((10 * Smoothstep(v1, 0.0, 5.0)) + fac * ((1000 + 15000 * Step(v1, 500.0, 50.0)) * Smoothstep(v2, 5.0, 10.0))) / spro(v1 / 40)));
-                            tR.data[0,0] = 0.0001 - 0.00009 * Math.Pow(Smoothstep((v1 + v2), 0.0, 10.0), 0.5);
-                            tR.data[1,1] = 1.0 - 0.9999 * Math.Pow(Smoothstep((v1 + v2), 5.0, 20.0), 2.0);
-                            tR.data[2,2] = 2.0 - 1.9999 * Math.Pow(Smoothstep((v1 + v2) + Vector2.Distance(filter.dir[0], filter.dir[2]), 5.0, 50.0), 1.0);
+                        if (!(filter.nonconf || (filter.pressure[0] == 0 && (filter.vel[0] == 0 || filter.vel[1] == 0)))) {
+                        tQ.data[0, 0] = 0.1;
+                        tQ.data[1, 1] = 1.125 * (1 + fac * 5 * Smoothstep((v1 + v2), 5.0, 50.0));
+                        tQ.data[2, 2] = 22.5 / (1 + fac * 7.5 * Smoothstep((Smoothstep(v2, 10.0, 50.0) * v1), 10.0, 50.0));
+                        tQ.data[3, 3] = (30.0 * (1 + ((10 * Smoothstep(v1, 0.0, 5.0)) + fac * ((1000 + 15000 * Step(v1, 500.0, 50.0)) * Smoothstep(v2, 5.0, 10.0))) / spro(v1 / 40)));
+                        tR.data[0,0] = 0.0001 - 0.00009 * Math.Pow(Smoothstep((v1 + v2), 0.0, 10.0), 0.5);
+                        tR.data[1,1] = 1.0 - 0.9999 * Math.Pow(Smoothstep((v1 + v2), 5.0, 20.0), 2.0);
+                        tR.data[2,2] = 2.0 - 1.9999 * Math.Pow(Smoothstep((v1 + v2) + Vector2.Distance(filter.dir[0], filter.dir[2]), 5.0, 50.0), 1.0);
                         }
                         else {
                             tQ.data[0, 0] = 1;
@@ -202,6 +202,15 @@ namespace Saturn
                             tR.data[1,1] = 0.0001;
                             tR.data[2,2] = 0.001;
                         }
+                    break;
+                    case 67:   
+                            tQ.data[0, 0] = 1;
+                            tQ.data[1, 1] = 1;
+                            tQ.data[2, 2] = 1;
+                            tQ.data[3, 3] = 1;
+                            tR.data[0,0] = 1;
+                            tR.data[1,1] = 1;
+                            tR.data[2,2] = 1;      
                     break;
                     default:
                     break;
@@ -215,19 +224,21 @@ namespace Saturn
                 return A;
             }
             else {
-                double v1, v2, v3, v4;
+                double v1, v2, v3, v4, v5;
                 if (movementAxis == 0) {
                     v1 = Math.Abs(filter.dir[0].X - filter.dir[2].X);
                     v3 = Math.Abs(filter.ddir[0].X);
-                    v2 = v3 / spro(Math.Abs(filter.dir[0].X / 10));
+                    v2 = v3 / spro(Math.Abs(filter.dir[0].X / 10.0));
                     v4 = Math.Abs(filter.dir[0].X);
+                    v5 = Math.Abs(filter.ddir[0].X - filter.ddir[2].X);
 
                 }
                 else {
                     v1 = Math.Abs(filter.dir[0].Y - filter.dir[2].Y);
                     v3 = Math.Abs(filter.ddir[0].Y);
-                    v2 = v3 / spro(Math.Abs(filter.dir[0].Y / 10));
+                    v2 = v3 / spro(Math.Abs(filter.dir[0].Y / 10.0));
                     v4 = Math.Abs(filter.dir[0].Y);
+                    v5 = Math.Abs(filter.ddir[0].Y - filter.ddir[2].Y);
                 }
 
                 switch (tuneID) {
@@ -235,7 +246,7 @@ namespace Saturn
                     if (!filter.nonconf) {
                         v2 = v3 / spro(v4 / (6 + 12 * Step(v4, 0.0, 200.0)));
                         A[2, 2] *= 0.5 + 0.5 * Math.Pow(Smoothstep(v1, 0.1, 5), 0.5);
-                        A[2, 3] *= 5.0 * Smoothstep(v2, 0.0, v3 + 0.1);
+                        A[2, 3] *= Math.Min(5.0, 0.25 * Smoothstep(v5, 5.0, 25.0) + (5 * Smoothstep(v2, 0.0, v3 + 0.1)));
                     }                
                 break;
                 case 2:
@@ -290,9 +301,10 @@ namespace Saturn
                 switch (tuneID) {
                     case 1:
                         if (!filter.nonconf) {
-                            tmp1 = Step(v1, 5.0, 25.0);
-                            tx[2,0] *= Step(v2, 5.0, 15.0) * ((1 + tmp1) - (1.25 * tmp1) * Step(v3, 10.0, 0.0));
-                            x[2,0] *= Step(v2, 5.0, 15.0) * ((1 + tmp1) - (0.75 * tmp1) * Step(v3, 10.0, 0.0));
+                            tmp1 = Step(v1, 5.0, 15.0);
+                            tx[2,0] *= Step(v2, 5.0, 15.0) * ((1.0 - 0.03 * Step((double)filter.areaScale, 1.0, 0.5) + tmp1) - (1.25 * tmp1) * Step(v3, 10.0, 0.0));
+                            x[2,0] *= Step(v2, 5.0, 15.0) * ((0.75 + tmp1) - (0.75 * tmp1) * Step(v3, 10.0, 0.0));
+                            tx[1,0] *= 1.0 + 0.05 * Smoothstep(filter.jerk[0], 10f, 50f) - 0.05 * Smoothstep(filter.jerk[0], -10f, -50f);
                         }
                     break;
                     case 2:

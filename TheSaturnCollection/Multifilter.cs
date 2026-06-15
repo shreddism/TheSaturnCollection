@@ -158,7 +158,7 @@ namespace Saturn
         )]
         public bool interp { set; get; }
 
-        [Property("Wire - Filter Mode"), PropertyValidated(nameof(wireModes)), DefaultPropertyValue("Non-Wire - Interp"), ToolTip
+        [Property("Wire - Filter Mode"), PropertyValidated(nameof(wireModes)), DefaultPropertyValue("Wire - Interp"), ToolTip
         (
             "Controls ConsumeState calling UpdateState and when below filtering applies.\n" +
             "Check the wiki for more info."
@@ -214,8 +214,11 @@ namespace Saturn
         protected override void ConsumeState()
         {
             if (init && (filter!.tabletType == 1 || filter!.tabletType == 2) && State is IProximityReport p) {
-                if (p.NearProximity == false)
+                if (p.NearProximity == false) {
+                    filter.emergency = 4;
+                    filter.eflag = false;
                     return;
+                }
             }
             if (State is ITabletReport report) {  
                 if (!init) {
@@ -261,4 +264,3 @@ namespace Saturn
         public string name = string.Empty;
     }
 }
-
