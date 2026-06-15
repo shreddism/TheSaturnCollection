@@ -130,7 +130,7 @@ namespace Saturn
             if (tabletType == 1 && emergency == 0 && tick > 5) {
                 altTime = (float)altTimingStopwatch.Restart().TotalMilliseconds;
                 tOverride = 1.0f + Math.Max(0.0f, lastTime + (altTime / (msAvg * ((msOverride == 0f || etick < 50) ? 1.001f : 1.0000f))) - ((etick < 50) ? 2.1f : 2.000f));
-                
+
                 if (tOverride == 1f) {
                     ttick = 0;
                 }
@@ -345,7 +345,7 @@ namespace Saturn
                 InsertAtFirst(crpos, predict);
                 InsertAtFirst(crdir, crpos[0] - crpos[1]);
 
-                if (!nonconf && tabletType == 1 || tabletType == 2) {
+                if (!nonconf && tabletType == 1 || tabletType == 2 || tabletType == 4) {
                     float kvv = 0.25f * Smoothstep(vel[0], 10 * areaScale, 30 * areaScale) * Smoothstep(Math.Abs(accel[0]) + Math.Abs(jerk[0]), 20.0f * areaScale, 5.0f * areaScale) * Smoothstep(Vector2.Distance(dir[0], dir[5]), 5.0f * areaScale, 10.0f * areaScale) * Smoothstep((ddir[0] + ddir[1] + ddir[2] + ddir[3] + ddir[4] + ddir[5]).Length(), 30.0f * areaScale, 25f * areaScale);
                     if (kvv > kvw)  {
                         kvw = 0.25f * kvv + 0.75f * kvw;
