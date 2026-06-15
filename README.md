@@ -107,9 +107,9 @@ The filter mode dictates what is put through the filters: the points to be inter
 Point filtering doesn't have to worry about time compensation in smoothing; it just runs at the report rate.
 Disabling interpolation will force point filtering, as that's the only way it can work.
 
-#### Expected Milliseconds Per Report Override
+#### Expected Milliseconds Per Report
 Interpolation and prediction uses timing averages of inconsistent integer millisecond report times to generally know what to do. I thought it would be reassuring to add a hard override for those who know their tablet's average. Doesn't take effect at 0.
-Personally, I have a PTK-470 and I measured 3.302466 with the stock pen.
+Personally, I use 3.3025 (PTK-470, stock pen).
 
 #### "Tablet-Specific Tweaks"
 This looks up the name of the tablet in use and gives it an ID. Effects include tweaks to the Kalman filter used for prediction, as well as attempted bug mitigations for pressing/lifting.
