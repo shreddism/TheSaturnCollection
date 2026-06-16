@@ -362,6 +362,10 @@ namespace Saturn
                     InsertAtFirst(c1d, crdir[0]);
                 }
 
+                if ((tabletType == 1 || tabletType == 2) && (pressure[0] == 0 && (vel[1] == 0f))) {
+                    c1p[0] = c1p[1];
+                }
+
                 predict = c1p[0];
 
                 predict += (smpos[0] - predict) * (1f - frameShift);
