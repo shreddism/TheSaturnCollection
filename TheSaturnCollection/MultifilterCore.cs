@@ -481,7 +481,7 @@ namespace Saturn
             kf = new KalmanVector2(p, this);
             int hold = tabletType;
             tabletType = 67;
-            kvf = new KalmanVector2(p, this);
+            kvf = new KalmanVector2(Vector2.Zero, this);
             tabletType = hold;
             pos = Enumerable.Repeat(p, HMAX).ToArray();
             stpos = Enumerable.Repeat(p, HMAX).ToArray();
