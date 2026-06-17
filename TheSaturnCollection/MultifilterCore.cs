@@ -194,20 +194,28 @@ namespace Saturn
 
             t = Math.Clamp(t, 0f, 3f);
 
-
             if (tabletType == 1 && emergency == 0 && tick > 5) {
                 tOverride += (altTime) / (msAvg * ((msOverride == 0f || etick < 50) ? 1.001f : 1.0000f));
                 t = tOverride;
                 lastTime = t;
             }
 
-            
-
             if (pointFlag) {
-                outputInternal = RTrajectory(t, fipos[2], fipos[1], fipos[0]);
+                if (tabletType > 0) {
+                    outputInternal = Vector2.Lerp(RTrajectory(t, fipos[2], fipos[1], fipos[0]), Trajectory(fipos[0], fipos[1], fipos[2], t), Step(pointaccel[0], 0f, 5f));
+                }
+                else {
+                    outputInternal = RTrajectory(t, fipos[2], fipos[1], fipos[0]);
+                }
             }
             else {
-                startOutput = RTrajectory(t, stpos[2], stpos[1], stpos[0]);
+                if (tabletType > 0) {
+                    startOutput = Vector2.Lerp(RTrajectory(t, stpos[2], stpos[1], stpos[0]), Trajectory(stpos[0], stpos[1], stpos[2], t), Step(pointaccel[0], 0f, 5f));
+                }
+                else {
+                    startOutput = RTrajectory(t, stpos[2], stpos[1], stpos[0]);
+                }
+                
                 FilterPass();
                 outputInternal = adaptOutput;
             }
@@ -230,6 +238,7 @@ namespace Saturn
 
             consume = false;
         }
+
         
         public void StatUpdate(ITabletReport report) 
         {
@@ -338,6 +347,7 @@ namespace Saturn
                     }
                 }
 
+
                 if (pointFlag && emergency > 0) {
                     predict = smpos[0];
                 }
@@ -386,8 +396,9 @@ namespace Saturn
             if (tabletType == 1 && Vector2.Distance(prpos[0], pos[0]) > 500f + vel[0]) {
                 emergency = 4;
             }
-        }
 
+            
+        }
 
         void DAC() 
         {

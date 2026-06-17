@@ -217,7 +217,6 @@ namespace Saturn
                 if (p.NearProximity == false) {
                     filter.emergency = 4;
                     filter.eflag = false;
-                    return;
                 }
             }
             if (State is ITabletReport report) {  
