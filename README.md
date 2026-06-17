@@ -9,9 +9,7 @@ Important: The multifilter used to be split into separate versions: one that did
 
 ### Most Recent Update
 
-0.10.0 - Just go to the release page.
-
-0.10.3 is waiting (miscellaneous improvements)
+0.10.3 - Releases page has update notes.
 
 ## Things You Should Probably Know
 
