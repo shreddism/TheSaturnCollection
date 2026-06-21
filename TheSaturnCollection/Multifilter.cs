@@ -233,7 +233,9 @@ namespace Saturn
             }
             if (State is ITabletReport report) {  
                 if (!init) {
-                    filter = new MultifilterCore(this);
+                    if (!auxinit){
+                        filter = new MultifilterCore(this);
+                    }
                     if (filter != null) {
                         filter!.Initialize(report);
                         init = true;

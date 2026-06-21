@@ -618,6 +618,7 @@ namespace Saturn
 
         public void IDTablet(string name, ref int tabletType) {
             if (!iflag){
+                Console.WriteLine(iflag);
                 iflag = true;
                 Identify(name, ref tabletType);
                 Log.Write("Multifilter", "Tablet: " + name);
