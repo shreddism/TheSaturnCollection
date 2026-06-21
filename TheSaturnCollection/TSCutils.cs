@@ -168,13 +168,16 @@ namespace Saturn
                 case "Wacom CTH-690":
                     ID = 5;
                 break;
+                case "Gaomon S620":
+                    ID = 6;
+                break;
                 default:
                     ID = 0;
                 break;
             }
         }
 
-        public static void PlotD(string c, Vector2 p, bool t) 
+        /*public static void PlotD(string c, Vector2 p, bool t) 
         {
             Console.Write(c + "x");
             Console.WriteLine(p.X);
@@ -184,7 +187,7 @@ namespace Saturn
                 Console.WriteLine("xx");
                 Console.WriteLine("dd");
             }
-        }
+        }*/
     }
 
     

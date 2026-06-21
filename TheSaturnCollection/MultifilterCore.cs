@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.Intrinsics;
 using System.Numerics;
 using OpenTabletDriver.Plugin;
 using OpenTabletDriver.Plugin.Attributes;
@@ -6,14 +7,16 @@ using OpenTabletDriver.Plugin.Output;
 using OpenTabletDriver.Plugin.Tablet;
 using OpenTabletDriver.Plugin.Timing;
 using static Saturn.Utils;
+using static Saturn.MultifilterExtraSettings;
 
 namespace Saturn
 {
     public class MultifilterCore 
     {
-
         public MultifilterCore(Multifilter m) 
         {
+            savedFilter = m;
+            ExGate = m.ExGate;
             frameShift = m.frameShift;
             reverseSmoothing = m.reverseSmoothing;
             wireMode = m.wireMode;
@@ -27,7 +30,7 @@ namespace Saturn
             areaScale = m.areaScale;
             xMod = m.xMod;
             interp = m.interp;
-            tabletToggle = m.tabletToggle;
+            tabletToggle = !(ExGate && ExEnabled && disableTabletToggle);
             Frequency = m.Frequency;
             name = m.name;
         }
@@ -37,6 +40,7 @@ namespace Saturn
             if (interp) {
                 if (tabletToggle)
                     IDTablet(name, ref tabletType);
+                    
 
                 if (msOverride > 0) {
                     reportMsAvg = msOverride;
@@ -44,6 +48,10 @@ namespace Saturn
                     correctWeight = startCorrectWeight * expect * (msStandard / msOverride);
                     secAvg = reportMsAvg / 1000f;
                     rpsAvg = 1f / secAvg;
+                }
+
+                if (tabletType == 6 && (savedFilter.msOverride > 0 || (ExGate && ExEnabled && msOverrideH > 0))) {
+                    Log.Write("Multifilter", "This tablet's report rate may change when pressing pen/aux buttons. Be sure about using an override setting.", LogLevel.Warning, false, false);
                 }
 
                 wireCode = wireMode switch {
@@ -71,12 +79,21 @@ namespace Saturn
             adjDacOuter = dacOuter;
             halfSmoothDist = smoothDist * 0.5f;
 
-            emergency = 4;
+            emergency = 3;
             eflag = false;
         }
         
         public void HandleConsume(ITabletReport report)
         {
+            if (ExGate && ExEnabled && hoverSettings) {
+                if (report.Pressure == 0 && (pressure[0] > 0 || gtick == 0)) {
+                    HoverSettings();
+                }
+                if (report.Pressure > 0 && pressure[0] == 0) {
+                    DragSettings();
+                }
+            }
+
             if (tick < long.MaxValue) tick++;
             if (gtick < long.MaxValue) gtick++;
             if (interp && (tabletType == 1 || tabletType == 2) && (report.Pressure == 0 && pressure[0] > 0) && (pos[0].Y == report.Position.Y)) {   // An extra report with identical position is thrown in. Don't process it.
@@ -87,10 +104,26 @@ namespace Saturn
 
                 return;
             }
+            if (interp && tabletType == 6) {
+                if (auxButtons != null) {
+                    for (int i = 0; i < 4; i++) {
+                        if (auxButtons[i]) {
+                            eflag = false;
+                            emergency = 10;
+                        }
+                    }
+                }
+                if (report.PenButtons[0] != lastPenButtons[0] || report.PenButtons[1] != lastPenButtons[1]) {
+                    eflag = false;
+                    emergency = 10;
+                }
+                lastPenButtons = (bool[])report.PenButtons.Clone();
+            }
 
             if (etick < long.MaxValue) etick++;
 
             consume = true;
+
 
             reportTime = (float)reportStopwatch.Restart().TotalMilliseconds;
             consumeDelta = reportTime / 1000f;
@@ -201,7 +234,7 @@ namespace Saturn
             }
 
             if (pointFlag) {
-                if (tabletType > 0) {
+                if ((tabletType > 0 && tabletType < 6) || (tabletType == 6 && (pressure[0] > 0 || vel[0] > 25f))) {
                     outputInternal = Vector2.Lerp(RTrajectory(t, fipos[2], fipos[1], fipos[0]), Trajectory(fipos[0], fipos[1], fipos[2], t), Step(pointaccel[0], 0f, 5f));
                 }
                 else {
@@ -209,7 +242,7 @@ namespace Saturn
                 }
             }
             else {
-                if (tabletType > 0) {
+                if ((tabletType > 0 && tabletType < 6) || (tabletType == 6 && (pressure[0] > 0 || vel[0] > 25f))) {
                     startOutput = Vector2.Lerp(RTrajectory(t, stpos[2], stpos[1], stpos[0]), Trajectory(stpos[0], stpos[1], stpos[2], t), Step(pointaccel[0], 0f, 5f));
                 }
                 else {
@@ -227,11 +260,13 @@ namespace Saturn
             report.Pressure = pressure[0];   
 
 
+
+
             if (!vec2IsFinite(report.Position + startOutput + clampOutput + smoothOutput + adaptOutput + outputInternal)) {
                 ERefresh();
                 emPos = pos[0];
                 eflag = false;
-                emergency = 4;
+                emergency = 5;
                 ResetValues(pos[0]);
                 report.Position = new Vector2(outputInternal.X / xMod, outputInternal.Y);
             }       
@@ -243,11 +278,26 @@ namespace Saturn
         public void StatUpdate(ITabletReport report) 
         {
             InsertAtFirst(pos, report.Position);
+            InsertAtFirst(rawpos, report.Position);
+            InsertAtFirst(rawdir, rawpos[0] - rawpos[1]);
             pos[0].X *= xMod;
             Vector2 smoothed = pos[0];
 
-            if (reverseSmoothing < 1f && reverseSmoothing > 0f)
-                smoothed = pos[1] + (pos[0] - pos[1]) / reverseSmoothing;
+            if ((savedFilter.reverseSmoothing < 1f && savedFilter.reverseSmoothing > 0f) || (ExGate && ExEnabled && reverseSmoothingH < 1f && reverseSmoothingH > 0f)) {
+                float brs = reverseSmoothing;
+                if ((rawdir[0].Length() <= 1.42f && rawdir[1].Length() <= 1.42f) || (tabletType == 6 && (pressure[0] == 0 && (rawdir[0].Length() < 6f || rawdir[1] == Vector2.Zero  || rawdir[2] == Vector2.Zero  || rawdir[3] == Vector2.Zero)))) {
+                    brs = 1;
+                }
+
+                if (brs >= rs) rs = brs;
+                else {
+                    float tScale = 0.1f + 0.4f * Smoothstep(rawdir[0].Length(), 6f, (pressure[0] > 0 ? 25f : 50f));
+                    tScale *= 1.0f + Smoothstep(rawdir[0].Length() - rawdir[1].Length(), 0f, (pressure[0] > 0 ? 10f : 20f));
+                    rs = tScale * brs + (1.0f - tScale) * rs;
+                    if (rs < brs * (1.0f + tScale / (pressure[0] > 0 ? 5.0f : 10.0f))) rs = brs;
+                }
+                smoothed = pos[1] + (pos[0] - pos[1]) / rs;
+            }
 
             InsertAtFirst(smpos, smoothed);
             InsertAtFirst(dir, smpos[0] - smpos[1]);
@@ -258,9 +308,11 @@ namespace Saturn
             InsertAtFirst(pointaccel, ddir[0].Length());
             InsertAtFirst(pressure, report.Pressure);
 
+
+
             if (interp) {
                 if (dir[0] == pos[0]) {
-                    emergency = 4;
+                    emergency = 5;
                     dir[0] = Vector2.Zero;
                     eflag = false;
                 }
@@ -269,15 +321,14 @@ namespace Saturn
                         eflag = true;
 
                     emPos = outputInternal;
-                    emergency = 4;
+                    emergency = 5;
                 }
             }
         }
 
-        
-
         void ConsumeFilterPass(ITabletReport report) 
         {
+
 
             if (interp) {
                 PredictPass();    
@@ -285,7 +336,6 @@ namespace Saturn
                 tOffset *= MathF.Exp(-5f * consumeDelta);
                 tOffset = Math.Clamp(tOffset, -secAvg, secAvg);
                 latestReport = runningStopwatch.Elapsed + TimeSpan.FromSeconds(tOffset); 
-
             }
             else {
                 InsertAtFirst(svpos, smpos[0]);
@@ -302,16 +352,22 @@ namespace Saturn
                 InsertAtFirst(fipos, adaptOutput);
             }
         }
+
         
         void PredictPass() 
         {
             Vector2 predict = smpos[0];
 
-            if (frameShift > 0f && kf != null) {
-                nonconf = ((tabletType == 1 || tabletType == 2 || tabletType == 5) && ((emergency > 0) || (pressure[0] == 0 && Vector2.Distance(dir[0], dir[1] + ddir[1]) > (vel[0] / 8))));
+            if ((savedFilter.frameShift > 0f || (ExGate && ExEnabled && frameShiftH > 0f)) && kf != null) {
+                nonconf = ((emergency > 0) || (tabletType == 1 || tabletType == 2 || tabletType == 5) && ((pressure[0] == 0 && Vector2.Distance(dir[0], dir[1] + ddir[1]) > (vel[0] / 8))));
+             
+                if (emergency <= 1 || eflag) {
+                    predict = kf.Update(smpos[0], this);
+                }
+                else {
+                    kf = new KalmanVector2(smpos[0], this);
+                }
                 
-                predict = kf.Update(smpos[0], this);
-
                 InsertAtFirst(rk, predict);
 
                 if (!nonconf) {
@@ -319,22 +375,26 @@ namespace Saturn
                     float faca = Smoothstep(Vector2.Distance(dir[0], dir[2]), 5.0f, 0.0f) * Smoothstep(vel[0], 0.0f, 5.0f);
                     predict = Vector2.Lerp(predict, Vector2.Lerp(smpos[0], crpos[0], 0.45f) + dir[0], fac);
 
-                    if ((tabletType == 1 || tabletType == 2 || tabletType == 4) && (Vector2.Distance(dir[0], dir[2]) > Vector2.Distance(dir[0], dir[1])) && (vel[0] > 20.0f)) {
+                    if ((tabletType == 1 || tabletType == 2 || tabletType == 4 || tabletType == 6) && (Vector2.Distance(dir[0], dir[2]) > Vector2.Distance(dir[0], dir[1])) && (vel[0] > 20.0f)) {
                         float frame1 = tabletType switch {
                             1 => 3.0f + Smoothstep(vel[0], 500.0f, 150.0f) * (0.1f * Smoothstep(jerk[0], 10f, 50f) - 1f * Smoothstep(jerk[0], -10f, -50f)),
                             2 or 4 => 3.0f + Smoothstep(vel[0], 500.0f, 150.0f) * (0.1f * Smoothstep(jerk[0], 20f, 50f) - 0.3f * Smoothstep(jerk[0], -20f, -50f)),
                             _ => 3.0f,
                         };
+
+                        float velReq = (tabletType == 6) ?
+                        Smoothstep(vel[0], 50f, 150f) * Smoothstep(Math.Abs(jerk[0]) + Math.Abs(accel[0]), 10f, 35f) :
+                        1f;
                         
                         Vector2 x1 = Trajectory(dir[0], dir[1], dir[2], frame1);
 
-                        float f1 = Smoothstep(vel[0] + Vector2.Distance(dir[0], dir[2]), 0.0f, 100.0f) * Smoothstep(((dir[0] - dir[1]) + (dir[1] - dir[2])).Length(), 10.0f, 50.0f);
+                        float f1 = velReq * Smoothstep(vel[0] + Vector2.Distance(dir[0], dir[2]), 0.0f, 100.0f) * Smoothstep(((dir[0] - dir[1]) + (dir[1] - dir[2])).Length(), 10.0f, 50.0f);
 
                         predict = Vector2.Lerp(predict, Vector2.Lerp(smpos[0], crpos[0], 0.585f - 0.05f * Smoothstep((Math.Abs(accel[0]) + Math.Abs(jerk[0])) * spro(vel[0] / 100), 0.0f, 250.0f)) + x1, Math.Max(0.0f, (0.725f + 0.025f * Smoothstep(vel[0] + Math.Abs(accel[0]) + Math.Abs(jerk[0]), 50.0f, 150.0f)) * f1));
 
                         if (DotNorm(dir[0], dir[5], 0.0f) > 0.9f) {
                             Vector2 x2 = Trajectory((dir[0] + dir[1]) * 0.5f, (dir[2] + dir[3]) * 0.5f, (dir[4] + dir[5]) * 0.5f, 2.75f); 
-                            float f2 = Smoothstep(vel[0] + Math.Abs(accel[0]), 0.0f, 100.0f) * Smoothstep(vel[0] + Vector2.Distance(dir[0], dir[1]), 10.0f, 30.0f) * Smoothstep(Vector2.Distance(dir[0], dir[2]), 3.0f, 20.0f) * Smoothstep(Math.Abs(accel[0]) + Math.Abs(jerk[0]), 25.0f, 10.0f);
+                            float f2 = velReq * Smoothstep(vel[0] + Math.Abs(accel[0]), 0.0f, 100.0f) * Smoothstep(vel[0] + Vector2.Distance(dir[0], dir[1]), 10.0f, 30.0f) * Smoothstep(Vector2.Distance(dir[0], dir[2]), 3.0f, 20.0f) * Smoothstep(Math.Abs(accel[0]) + Math.Abs(jerk[0]), 25.0f, 10.0f);
 
                             predict = Vector2.Lerp(predict, Vector2.Lerp(smpos[0], rk[1], 0.35f * Smoothstep(Math.Abs(accel[0]), 25.0f, 5.0f)) + x2, Math.Max(0.0f, 0.5f * (f2 - f1)));
 
@@ -356,16 +416,25 @@ namespace Saturn
                 InsertAtFirst(crdir, crpos[0] - crpos[1]);
 
                 if (!nonconf && tabletType == 1 || tabletType == 2 || tabletType == 4) {
-                    float kvv = 0.25f * Smoothstep(vel[0], 10 * areaScale, 30 * areaScale) * Smoothstep(Math.Abs(accel[0]) + Math.Abs(jerk[0]), 20.0f * areaScale, 5.0f * areaScale) * Smoothstep(Vector2.Distance(dir[0], dir[5]), 5.0f * areaScale, 10.0f * areaScale) * Smoothstep((ddir[0] + ddir[1] + ddir[2] + ddir[3] + ddir[4] + ddir[5]).Length(), 30.0f * areaScale, 25f * areaScale);
-                    if (kvv > kvw)  {
-                        kvw = 0.25f * kvv + 0.75f * kvw;
-                    }
-                    else {
-                        kvw = kvv;
-                    }
                     Vector2 kv = kvf!.Update(dir[0], this);
-                    InsertAtFirst(c1d, Vector2.Lerp(crdir[0], kv, kvw));
-                    InsertAtFirst(c1p, crpos[1] + c1d[0] * (1.0f + 0.01f * Smoothstep(jerk[0], 10f, 50f) - 0.01f * Smoothstep(jerk[0], -10f, -50f)));
+                        if (etick > 10) {
+                            float kvv = Smoothstep(vel[0], 10 * areaScale, 30 * areaScale) * Smoothstep(Math.Abs(accel[0]) + Math.Abs(jerk[0]), 20.0f * areaScale, 5.0f * areaScale) * Smoothstep(Vector2.Distance(dir[0], dir[5]), 5.0f * areaScale, 10.0f * areaScale) * Smoothstep((ddir[0] + ddir[1] + ddir[2] + ddir[3] + ddir[4] + ddir[5]).Length(), 30.0f * areaScale, 25f * areaScale);
+                    
+                                kvv *= (tabletType == 1) ? 0.75f : 0.5f;
+                                
+                                if (kvv > kvw)  {
+                                    kvw = 0.25f * kvv + 0.75f * kvw;
+                                }
+                                else {
+                                    kvw = kvv;
+                                }
+                                InsertAtFirst(c1d, Vector2.Lerp(crdir[0], kv, kvw));
+                                InsertAtFirst(c1p, crpos[1] + c1d[0] * (1.0f + 0.01f * Smoothstep(jerk[0], 10f, 50f) - 0.01f * Smoothstep(jerk[0], -10f, -50f)));
+                        }
+                        else {
+                            InsertAtFirst(c1p, crpos[0]);
+                            InsertAtFirst(c1d, crdir[0]);
+                        }
                 }
                 else {
                     InsertAtFirst(c1p, crpos[0]);
@@ -393,11 +462,10 @@ namespace Saturn
                 InsertAtFirst(prdir, dir[0]);
             }
 
-            if (tabletType == 1 && Vector2.Distance(prpos[0], pos[0]) > 500f + vel[0]) {
-                emergency = 4;
+            if ((tabletType == 1 || tabletType == 6) && (Vector2.Distance(prpos[0], smpos[0]) > 500f + dir[0].Length())) {
+                emergency = 5;
             }
 
-            
         }
 
         void DAC() 
@@ -473,12 +541,11 @@ namespace Saturn
             AEMA();
         }
 
-
-
         void ResetValues(Vector2 p) 
         {
             tick = 0;
-            kf = new KalmanVector2(p, this);
+            
+            if (kf == null) kf = new KalmanVector2(p, this);
             int hold = tabletType;
             tabletType = 67;
             kvf = new KalmanVector2(Vector2.Zero, this);
@@ -550,54 +617,114 @@ namespace Saturn
         }
 
         public void IDTablet(string name, ref int tabletType) {
-            Identify(name, ref tabletType);
-            Log.Write("Multifilter", "Tablet: " + name);
-            switch (tabletType) {
-                case 1:
-                    Log.Write("Multifilter", "Prediction is enhanced heavily.");
-                    Log.Write("Multifilter", "Press/lift bugging is mitigated.");
-                    if (msOverride == 0f) {
-                        Log.Write("Multifilter", "Confident timing system is in use (No timing override).");
-                        Log.Write("Multifilter", "Consider using 3.3025 for the Expected Milliseconds Per Report setting.");
-                    }
-                    else {
-                        if (msOverride == 3.3025f) {
-                            Log.Write("Multifilter", "Confident timing system is in use.");
+            if (!iflag){
+                iflag = true;
+                Identify(name, ref tabletType);
+                Log.Write("Multifilter", "Tablet: " + name);
+                switch (tabletType) {
+                    case 1:
+                        Log.Write("Multifilter", "Prediction is enhanced heavily.");
+                        Log.Write("Multifilter", "Press/lift bugging is mitigated.");
+                        if (msOverride == 0f) {
+                            Log.Write("Multifilter", "Confident timing system is in use (No timing override).");
+                            Log.Write("Multifilter", "Consider using 3.3025 for the Expected Milliseconds Per Report setting.");
                         }
                         else {
-                            Log.Write("Multifilter", "Confident timing system may or may not be in use. You're on your own here.");
+                            if (msOverride == 3.3025f) {
+                                Log.Write("Multifilter", "Confident timing system is in use.");
+                            }
+                            else {
+                                Log.Write("Multifilter", "Confident timing system may or may not be in use. You're on your own here.");
+                            }
                         }
-                    }
-                    rpsAvg = 302.8f;
-                    secAvg = 0.0033025f;
-                    msAvg = 3.3025f;
-                    reportMsAvg = 3.3025f;
-                break;
-                case 2:
-                    Log.Write("Multifilter", "Prediction is enhanced (hopefully).");
-                    Log.Write("Multifilter", "Press/lift bugging is mitigated (hopefully).");
-                break;
-                case 3:
-                    Log.Write("Multifilter", "Prediction is enhanced (hopefully).");
-                break;
-                case 4:
-                    Log.Write("Multifilter", "Prediction is enhanced (hopefully).");
-                break;
-                case 5:
-                    Log.Write("Multifilter", "Prediction is enhanced (hopefully).");
-                    Log.Write("Multifilter", "Press/lift bugging is mitigated (hopefully).");
-                break;
-                default:
-                    Log.Write("Multifilter", "No changes to be made.");
-                break;
+                        rpsAvg = 302.8f;
+                        secAvg = 0.0033025f;
+                        msAvg = 3.3025f;
+                        reportMsAvg = 3.3025f;
+                    break;
+                    case 2:
+                        Log.Write("Multifilter", "Prediction is enhanced (hopefully).");
+                        Log.Write("Multifilter", "Press/lift bugging is mitigated (hopefully).");
+                    break;
+                    case 3:
+                        Log.Write("Multifilter", "Prediction is enhanced (hopefully).");
+                    break;
+                    case 4:
+                        Log.Write("Multifilter", "Prediction is enhanced (hopefully).");
+                    break;
+                    case 5:
+                        Log.Write("Multifilter", "Prediction is enhanced (hopefully).");
+                        Log.Write("Multifilter", "Press/lift bugging is mitigated (hopefully).");
+                    break;
+                    case 6:
+                        Log.Write("Multifilter", "Prediction is enhanced.");
+                        Log.Write("Multifilter", "Hover bugging when interacting with certain settings is mitigated.");
+                        Log.Write("Multifilter", "Button-press bugging is mitigated.");
+                        if (savedFilter.reverseSmoothing == 1f || (ExGate && ExEnabled && reverseSmoothingH == 1f)) {
+                            Log.Write("Multifilter", "Important: the experience will be largely better if you set a good Reverse EMA setting.");
+                            Log.Write("Multifilter", "Check the README/wiki for more info.");
+                        }
+                    break;
+                    default:
+                        Log.Write("Multifilter", "No changes to be made.");
+                    break;
+                }
+            }
+        }
+
+        public void DragSettings() {
+            frameShift = savedFilter.frameShift;
+            reverseSmoothing = savedFilter.reverseSmoothing;
+            rInner = savedFilter.rInner;
+            stockWeight = savedFilter.stockWeight;
+            smoothDist = savedFilter.smoothDist;
+            sepMult = savedFilter.sepMult;
+            aResponse = savedFilter.aResponse;
+            dacOuter = savedFilter.dacOuter;
+            msOverride = savedFilter.msOverride;
+            areaScale = savedFilter.areaScale;
+            xMod = savedFilter.xMod;
+            halfSmoothDist = smoothDist / 2;
+            if (msOverride > 0) {
+                reportMsAvg = msOverride;
+                msAvg = msOverride;
+                correctWeight = startCorrectWeight * expect * (msStandard / msOverride);
+                secAvg = reportMsAvg / 1000f;
+                rpsAvg = 1f / secAvg;
+            }
+        }
+
+        public void HoverSettings() {
+            
+            frameShift = frameShiftH;
+            reverseSmoothing = reverseSmoothingH;
+            rInner = rInnerH;
+            stockWeight = stockWeightH;
+            smoothDist = smoothDistH;
+            sepMult = sepMultH;
+            aResponse = aResponseH;
+            dacOuter = dacOuterH;
+            msOverride = msOverrideH;
+            areaScale = areaScaleH;
+            xMod = xModH;
+            halfSmoothDist = smoothDist / 2;
+            if (msOverride > 0) {
+                reportMsAvg = msOverride;
+                msAvg = msOverride;
+                correctWeight = startCorrectWeight * expect * (msStandard / msOverride);
+                secAvg = reportMsAvg / 1000f;
+                rpsAvg = 1f / secAvg;
             }
         }
         
+        public Multifilter savedFilter;
         public bool consume;
         public string name;
         public int tabletType;
         public Vector2[] pos = new Vector2[HMAX];
         public Vector2[] dir = new Vector2[HMAX];
+        public Vector2[] rawpos = new Vector2[HMAX];
+        public Vector2[] rawdir = new Vector2[HMAX];
         public Vector2[] ddir = new Vector2[HMAX];
         public Vector2[] fipos = new Vector2[HMAX];
         public Vector2[] prpos = new Vector2[HMAX];
@@ -606,12 +733,15 @@ namespace Saturn
         public Vector2[] c1d = new Vector2[HMAX];
         public Vector2[] c1p = new Vector2[HMAX];
         public Vector2[] rk = new Vector2[HMAX];
+        public bool ExGate;
         public Vector2[] prdir = new Vector2[HMAX];
         public Vector2[] stpos = new Vector2[HMAX];
         public Vector2[] stdir = new Vector2[HMAX];
         public Vector2[] smpos = new Vector2[HMAX];
         public Vector2[] svpos = new Vector2[HMAX];
         public Vector2[] svdir = new Vector2[HMAX];
+        public bool[]? auxButtons;
+        public bool[] lastPenButtons = new bool[HMAX];
         public Vector2 smoothHold, emPos;
         public float[] vel = new float[HMAX];
         public float[] accel = new float[HMAX];
@@ -629,8 +759,11 @@ namespace Saturn
         public float reportMsAvg;
         public float sepScale;
         public float kvw;
+        public float kvw2;
+        public float rs;
         public float lastTime;
         public float tOverride;
+        public bool iflag;
         public bool timeFloor;
         public float altTime;
         public const float startCorrectWeight = 0.1f;    
