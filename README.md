@@ -69,7 +69,7 @@ EMA weight is how much the output goes from itself to the input, so 1 means noth
 Smoothed Antichatter sets a base value for how eager the output cursor is to go to the input position when moving fast. This multiplies that value.
 
 ### Accel Response Aggressiveness
-Explained in the tooltip.
+Explained in the tooltip. This may look better with point filtering and/or no wiring.
 
 ### Directional Antichatter Threshold
 Explained in the tooltip.
