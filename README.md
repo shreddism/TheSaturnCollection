@@ -1,6 +1,5 @@
 # The Saturn Collection [![Total Download Count](https://img.shields.io/github/downloads/shreddism/TheSaturnCollection/total.svg)](https://github.com/shreddism/TheSaturnCollection/releases)
 
-
 A set of filters which is planned to grow to include the current multifilter for all different types of users, as well as more niche optional plugins.
 
 Formatting may be non-final.
@@ -124,6 +123,11 @@ On Intuos Pro (200/300hz, 200lines/mm) tablets, using the Trajectory function to
 
 PTK-x70 tablets are known (source: me) to give funny unreliable position reports on press/lift (which is a PRESSURE thing, not a TILT thing, to prevent misreads, and it's a HARDWARE feature that cannot be disabled in OTD) that messes up all prediction. The filter just smooths its output to filtered sensor position for a few reports after this out of necessity.
 There are other Wacom tablets that apparently have similar behaviors, so they're given similar failsafes.
+
+#### PTK-470 Prediction Comparison (green = tablet report, yellow = temporal resampler, blue = the saturn collection)
+The top right report is the start of the sample.
+
+![](sampleprediction.png)
 
 #### Frequency
 On Windows, setting Frequency to anything but something that results in an integer-millisecond update interval (so 1000 or 500 in edge cases) will slam the CPU.
