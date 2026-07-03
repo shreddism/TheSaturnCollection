@@ -19,7 +19,7 @@ namespace Saturn
 
         public override PipelinePosition Position => PipelinePosition.PreTransform;
 
-        [Property("Reverse EMA"), DefaultPropertyValue(1.0f), ToolTip
+        [Property("Reverse EMA"), DefaultPropertyValue(1.0), ToolTip
         (
             "Possible range: 0.001 - 1.0, default 1.0\n\n" +
 
@@ -27,69 +27,69 @@ namespace Saturn
             "ONLY touch this IF your tablet has hardware smoothing!\n" +
             "Follow the instructions from the wiki."
         )]
-        public float reverseSmoothing
+        public double reverseSmoothing
         {
-            set => _reverseSmoothing = Math.Clamp(value, 0.001f, 1.0f);
+            set => _reverseSmoothing = Math.Clamp(value, 0.001, 1.0);
             get => _reverseSmoothing;
         }
-        public float _reverseSmoothing;
+        public double _reverseSmoothing;
 
-        [Property("Stock EMA Weight"), DefaultPropertyValue(1.0f), ToolTip
+        [Property("Stock EMA Weight"), DefaultPropertyValue(1.0), ToolTip
         (
             "Possible range: 0.001 - 1.0, default 1.0\n\n" +
 
             "Common EMA smoothing.\n" +
             "The below options are more adaptable."
         )]
-        public float stockWeight
+        public double stockWeight
         { 
-            set => _stockWeight = Math.Clamp(value, 0.001f, 1.0f);
+            set => _stockWeight = Math.Clamp(value, 0.001, 1.0);
             get => _stockWeight;
         }
-        public float _stockWeight;
+        public double _stockWeight;
 
-        [Property("Inner Radius"), DefaultPropertyValue(25.0f), ToolTip
+        [Property("Inner Radius"), DefaultPropertyValue(25.0), ToolTip
         (
             "Possible range: 0.0 - any, default 25.0\n\n" +
 
             "A full deadzone for movement. Unit is in raw tablet data.\n" +
             "Directionally separated with smooth position transition to raw based on itself."
         )]
-        public float rInner
+        public double rInner
         { 
-            set => _rInner = Math.Max(value, 0.0f);
+            set => _rInner = Math.Max(value, 0.0);
             get => _rInner;
         }
-        public float _rInner;
+        public double _rInner;
 
-        [Property("Smoothed Antichatter"), DefaultPropertyValue(50.0f), ToolTip
+        [Property("Smoothed Antichatter"), DefaultPropertyValue(50.0), ToolTip
         (
             "Possible range: 0.0 - any, default 50.0\n\n" +
             
             "Sets base behavior for distance smoothing. Unit is raw tablet data.\n" +
             "Goes to raw position based on the setting below."
         )]
-        public float smoothDist
+        public double smoothDist
         { 
-            set => _smoothDist = Math.Max(value, 0.0f);
+            set => _smoothDist = Math.Max(value, 0.0);
             get => _smoothDist;
         }
-        public float _smoothDist;
+        public double _smoothDist;
 
-        [Property("Separated Threshold Mult"), DefaultPropertyValue(1.0f), ToolTip
+        [Property("Separated Threshold Mult"), DefaultPropertyValue(1.0), ToolTip
         (
             "Possible range: 0.5 - any, default 1.0\n\n" +
 
             "Lower values are more eager to send smoothed position to raw."
         )]
-        public float sepMult
+        public double sepMult
         {
-            set => _sepMult = Math.Clamp(value, 0.5f, 100000.0f);
+            set => _sepMult = Math.Clamp(value, 0.5, 100000.0);
             get => _sepMult;
         }
-        public float _sepMult;
+        public double _sepMult;
 
-        [Property("Accel Response Aggressiveness"), DefaultPropertyValue(0.0f), ToolTip
+        [Property("Accel Response Aggressiveness"), DefaultPropertyValue(0.0), ToolTip
         (
             "Possible range: 0.0 - any, default 0.0\n\n" +
 
@@ -101,14 +101,14 @@ namespace Saturn
             "This could also apply to a PTH-x60 tablet, but this is untested.\n" +
             "General users - don't put above 0."
         )]
-        public float aResponse
+        public double aResponse
         { 
-            set => _aResponse = Math.Max(value, 0.0f);
+            set => _aResponse = Math.Max(value, 0.0);
             get => _aResponse;
         }
-        public float _aResponse;
+        public double _aResponse;
 
-        [Property("Directional Antichatter Threshold"), DefaultPropertyValue(0.0f), ToolTip
+        [Property("Directional Antichatter Threshold"), DefaultPropertyValue(0.0), ToolTip
         (
             "Possible range: 0.0 - any, default 0.0\n\n" +
 
@@ -117,28 +117,28 @@ namespace Saturn
             "Internal thresholds are used to prevent this from messing things up horribly.\n" +
             "If you are unsure, keep at 0."
         )]
-        public float dacOuter
+        public double dacOuter
         { 
-            set => _dacOuter = Math.Max(value, 0.0f);
+            set => _dacOuter = Math.Max(value, 0.0);
             get => _dacOuter;
         }
-        public float _dacOuter;
+        public double _dacOuter;
 
-        [Property("Area Scale"), DefaultPropertyValue(0.5f), ToolTip
+        [Property("Area Scale"), DefaultPropertyValue(0.5), ToolTip
         (
             "Possible range: 0.01 - 5.0, default 0.5\n\n" +
 
             "Multiplies every area-subjective threshold, mostly failsafes.\n" +
             "If you are unsure, see the wiki instructions."
         )]
-        public float areaScale
+        public double areaScale
         { 
-            set => _areaScale = Math.Clamp(value, 0.01f, 5f);
+            set => _areaScale = Math.Clamp(value, 0.01, 5.0);
             get => _areaScale;
         }
-        public float _areaScale;
+        public double _areaScale;
 
-        [Property("X Modifier"), DefaultPropertyValue(1.0f), ToolTip
+        [Property("X Modifier"), DefaultPropertyValue(1.0), ToolTip
         (
             "Possible range: 0.01 - 100.0, default 1.0\n\n" +
 
@@ -146,12 +146,12 @@ namespace Saturn
             "Divide display area ratio by tablet area ratio, then use that value.\n" +
             "If you are unsure, see the wiki instructions."
         )]
-        public float xMod
+        public double xMod
         { 
-            set => _xMod = Math.Clamp(value, 0.01f, 100f);
+            set => _xMod = Math.Clamp(value, 0.01, 100.0);
             get => _xMod;
         }
-        public float _xMod;
+        public double _xMod;
 
         [BooleanProperty("Interpolation", ""), DefaultPropertyValue(true), ToolTip
         (
@@ -178,7 +178,7 @@ namespace Saturn
         }; 
         public string? _wireMode;
 
-        [Property("Prediction Ratio"), DefaultPropertyValue(0.0f), ToolTip
+        [Property("Prediction Ratio"), DefaultPropertyValue(0.0), ToolTip
         (
             "Possible range: 0.0 - 1.0, default 0.0\n\n" +
 
@@ -186,24 +186,24 @@ namespace Saturn
             "Because of this, it has far less average position error under movement than what is seen in Temporal Resampler.\n" +
             "Beyond that, by default on certain tablets the filter's parameters and other values are tuned for better accuracy."
         )]
-        public float frameShift
+        public double frameShift
         { 
-            set => _frameShift = Math.Clamp(value, 0.0f, 1.0f);
+            set => _frameShift = Math.Clamp(value, 0.0, 1.0);
             get => _frameShift;
         }
-        public float _frameShift;
+        public double _frameShift;
 
-        [Property("Expected Milliseconds Per Report"), DefaultPropertyValue(0.0f), ToolTip
+        [Property("Expected Milliseconds Per Report"), DefaultPropertyValue(0.0), ToolTip
         (
             "Has no effect if set to 0.\n" +
             "You should know what you are doing if you change this from 0."
         )]
-        public float msOverride
+        public double msOverride
         { 
-            set => _msOverride = Math.Max(value, 0.0f);
+            set => _msOverride = Math.Max(value, 0.0);
             get => _msOverride;
         }
-        public float _msOverride;
+        public double _msOverride;
 
         [BooleanProperty("Enable Extra Settings", ""), DefaultPropertyValue(false), ToolTip
         (
@@ -212,6 +212,8 @@ namespace Saturn
             "so this controls where they are applied."
         )]
         public bool ExGate { set; get; }
+
+        public HPETDeltaStopwatch perf = new HPETDeltaStopwatch();
 
         protected override void ConsumeState()
         {
@@ -243,7 +245,6 @@ namespace Saturn
                     OnEmit();
                     return;
                 }
-
                 filter!.HandleConsume(report);
 
                 if (filter.wireFlag) {
@@ -251,7 +252,7 @@ namespace Saturn
                 }
 
                 if (!interp) {
-                    report.Position = filter.fipos[0];
+                    report.Position = filter.fipos[0].AsVector2();
                     OnEmit();
                 }
             }
@@ -287,126 +288,137 @@ namespace Saturn
         )]
         public static bool hoverSettings { set; get; }
 
-        [Property("Reverse EMA (Hover)"), DefaultPropertyValue(1.0f), ToolTip
+        [Property("Reverse EMA (Hover)"), DefaultPropertyValue(1.0), ToolTip
         (
             "Possible range: 0.001 - 1.0, default 1.0"
         )]
-        public static float reverseSmoothingH
+        public static double reverseSmoothingH
         {
-            set => _reverseSmoothingH = Math.Clamp(value, 0.001f, 1.0f);
+            set => _reverseSmoothingH = Math.Clamp(value, 0.001, 1.0);
             get => _reverseSmoothingH;
         }
-        public static float _reverseSmoothingH;
+        public static double _reverseSmoothingH;
 
-        [Property("Stock EMA Weight (Hover)"), DefaultPropertyValue(1.0f), ToolTip
+        [Property("Stock EMA Weight (Hover)"), DefaultPropertyValue(1.0), ToolTip
         (
             "Possible range: 0.001 - 1.0, default 1.0"
         )]
-        public static float stockWeightH
+        public static double stockWeightH
         { 
-            set => _stockWeightH = Math.Clamp(value, 0.001f, 1.0f);
+            set => _stockWeightH = Math.Clamp(value, 0.001, 1.0);
             get => _stockWeightH;
         }
-        public static float _stockWeightH;
+        public static double _stockWeightH;
 
-        [Property("Inner Radius (Hover)"), DefaultPropertyValue(25.0f), ToolTip
+        [Property("Inner Radius (Hover)"), DefaultPropertyValue(25.0), ToolTip
         (
             "Possible range: 0.0 - any, default 25.0"
         )]
-        public static float rInnerH
+        public static double rInnerH
         { 
-            set => _rInnerH = Math.Max(value, 0.0f);
+            set => _rInnerH = Math.Max(value, 0.0);
             get => _rInnerH;
         }
-        public static float _rInnerH;
+        public static double _rInnerH;
 
-        [Property("Smoothed Antichatter (Hover)"), DefaultPropertyValue(50.0f), ToolTip
+        [Property("Smoothed Antichatter (Hover)"), DefaultPropertyValue(50.0), ToolTip
         (
             "Possible range: 0.0 - any, default 50.0"
         )]
-        public static float smoothDistH
+        public static double smoothDistH
         { 
-            set => _smoothDistH = Math.Max(value, 0.0f);
+            set => _smoothDistH = Math.Max(value, 0.0);
             get => _smoothDistH;
         }
-        public static float _smoothDistH;
+        public static double _smoothDistH;
 
-        [Property("Separated Threshold Mult (Hover)"), DefaultPropertyValue(1.0f), ToolTip
+        [Property("Separated Threshold Mult (Hover)"), DefaultPropertyValue(1.0), ToolTip
         (
             "Possible range: 0.5 - any, default 1.0"
         )]
-        public static float sepMultH
+        public static double sepMultH
         {
-            set => _sepMultH = Math.Clamp(value, 0.5f, 100000.0f);
+            set => _sepMultH = Math.Clamp(value, 0.5, 100000.0);
             get => _sepMultH;
         }
-        public static float _sepMultH;
+        public static double _sepMultH;
 
-        [Property("Accel Response Aggressiveness (Hover)"), DefaultPropertyValue(0.0f), ToolTip
+        [Property("Accel Response Aggressiveness (Hover)"), DefaultPropertyValue(0.0), ToolTip
         (
             "Possible range: 0.0 - any, default 0.0"
         )]
-        public static float aResponseH
+        public static double aResponseH
         { 
-            set => _aResponseH = Math.Max(value, 0.0f);
+            set => _aResponseH = Math.Max(value, 0.0);
             get => _aResponseH;
         }
-        public static float _aResponseH;
+        public static double _aResponseH;
 
-        [Property("Directional Antichatter Threshold (Hover)"), DefaultPropertyValue(0.0f), ToolTip
+        [Property("Directional Antichatter Threshold (Hover)"), DefaultPropertyValue(0.0), ToolTip
         (
             "Possible range: 0.0 - any, default 0.0"
         )]
-        public static float dacOuterH
+        public static double dacOuterH
         { 
-            set => _dacOuterH = Math.Max(value, 0.0f);
+            set => _dacOuterH = Math.Max(value, 0.0);
             get => _dacOuterH;
         }
-        public static float _dacOuterH;
+        public static double _dacOuterH;
 
-        [Property("Area Scale (Hover)"), DefaultPropertyValue(0.5f), ToolTip
+        [Property("Area Scale (Hover)"), DefaultPropertyValue(0.5), ToolTip
         (
             "Possible range: 0.01 - 5.0, default 0.5"
         )]
-        public static float areaScaleH
+        public static double areaScaleH
         { 
-            set => _areaScaleH = Math.Clamp(value, 0.01f, 5f);
+            set => _areaScaleH = Math.Clamp(value, 0.01, 5);
             get => _areaScaleH;
         }
-        public static float _areaScaleH;
+        public static double _areaScaleH;
 
-        [Property("X Modifier (Hover)"), DefaultPropertyValue(1.0f), ToolTip
+        [Property("X Modifier (Hover)"), DefaultPropertyValue(1.0), ToolTip
         (
             "Possible range: 0.01 - 100.0, default 1.0"
         )]
-        public static float xModH
+        public static double xModH
         { 
-            set => _xModH = Math.Clamp(value, 0.01f, 100f);
+            set => _xModH = Math.Clamp(value, 0.01, 100.0);
             get => _xModH;
         }
-        public static float _xModH;
+        public static double _xModH;
 
-        [Property("Prediction Ratio (Hover)"), DefaultPropertyValue(0.0f), ToolTip
+        [Property("Prediction Ratio (Hover)"), DefaultPropertyValue(0.0), ToolTip
         (
             "Possible range: 0.0 - 1.0, default 0.0"
         )]
-        public static float frameShiftH
+        public static double frameShiftH
         { 
-            set => _frameShiftH = Math.Clamp(value, 0.0f, 1.0f);
+            set => _frameShiftH = Math.Clamp(value, 0.0, 1.0);
             get => _frameShiftH;
         }
-        public static float _frameShiftH;
+        public static double _frameShiftH;
 
-        [Property("Expected Milliseconds Per Report (Hover)"), DefaultPropertyValue(0.0f), ToolTip
+        [Property("Expected Milliseconds Per Report (Hover)"), DefaultPropertyValue(0.0), ToolTip
         (
             "You should know what you are doing if you change this from 0."
         )]
-        public static float msOverrideH
+        public static double msOverrideH
         { 
-            set => _msOverrideH = Math.Max(value, 0.0f);
+            set => _msOverrideH = Math.Max(value, 0.0);
             get => _msOverrideH;
         }
-        public static float _msOverrideH;
+        public static double _msOverrideH;
+
+        [Property("Time Scale"), DefaultPropertyValue(1.0), ToolTip
+        (
+            "time scale"
+        )]
+        public static double timeScale
+        { 
+            set => _timeScale = Math.Clamp(value, 0.1, 10.0);
+            get => _timeScale;
+        }
+        public static double _timeScale;
 
         [BooleanProperty("*Disable* Tablet-Specific Tweaks", ""), DefaultPropertyValue(false), ToolTip
         (

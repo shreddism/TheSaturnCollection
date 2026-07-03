@@ -9,43 +9,32 @@ namespace Saturn
         public const int HMAX = 6;
         public const int KALMAN_STATES = 2;
     
-        public static Vector2 Default(Vector2 a, Vector2 b) => vec2IsFinite(a) ? a : b;      
-        public static Vector2 WireMultAdjust(Vector2 a, float be, float br, bool w) => w ? a * Math.Clamp(br / be, 0, 1.5f) : a;
-        public static Vector2 MinLength(Vector2 a, Vector2 b) => a.LengthSquared() <= b.LengthSquared() ? a : b;
-        public static Vector2 MaxLength(Vector2 a, Vector2 b) => a.LengthSquared() >= b.LengthSquared() ? a : b;
-        public static Vector2 Norm(Vector2 a) => a != Vector2.Zero ? Vector2.Normalize(a) : Vector2.Zero;
-        public static float Default(float a, float b) => float.IsFinite(a) ? a : b;
-        public static float WireMultAdjust(float a, float be, float br, bool w) => w ? a * Math.Clamp(br / be, 0, 1.5f) : a;
-        public static float WirePowAdjust(float a, float be, float br, bool w) => w ? MathF.Pow(a, Math.Max(be / br, 0.66f)) : a;
-        public static float WireWeightAdjust(float a, float be, float br, bool w) => w ? 1 - MathF.Pow(1 - Math.Clamp(a, 0, 1), Math.Clamp(br / be, 0, 1.5f)) : a;
-        public static float DotNorm(Vector2 a, Vector2 b) => Vector2.Dot(Vector2.Normalize(a), Vector2.Normalize(b));
-        public static float DotNorm(Vector2 a, Vector2 b, float x) => (a != Vector2.Zero && b != Vector2.Zero) ? Vector2.Dot(Vector2.Normalize(a), Vector2.Normalize(b)) : x;
+        public static double Default(double a, double b) => double.IsFinite(a) ? a : b;
+        public static double WireMultAdjust(double a, float be, double br, bool w) => w ? a * Math.Clamp(br / be, 0, 1.5) : a;
+        public static double WirePowAdjust(double a, double be, double br, bool w) => w ? Math.Pow(a, Math.Max(be / br, 0.66)) : a;
+        public static double WireWeightAdjust(double a, double be, double br, bool w) => w ? 1 - Math.Pow(1 - Math.Clamp(a, 0, 1), Math.Clamp(br / be, 0, 1.5)) : a;
 
-        public static float XWA(float be, float br, bool b, float ce, float cr, bool c) 
+        public static double XWA(double be, double br, bool b, double ce, double cr, bool c) 
         {
             if (b) 
-                return Math.Clamp(br / be, 0.0f, 1.5f);
+                return Math.Clamp(br / be, 0.0, 1.5);
             if (c) 
-                return Default(cr / ce, 1.0f);
-            return 1.0f;
+                return Default(cr / ce, 1.0);
+            return 1.0;
         }
 
-        public static float UAdjust(float a, float b) => 1 - MathF.Pow(1 - a, b);
+        public static double UAdjust(double a, double b) => 1 - Math.Pow(1 - a, b);
 
         public static double spro(double x) => Math.Log(x + 1) + 1;
-        public static float spro(float x) => MathF.Log(x + 1) + 1;
 
-        public static float DSFunction(float dist, float smoothDist, float halfSmoothDist) 
+        public static double DSFunction(double dist, double smoothDist, double halfSmoothDist) 
         {
             if (dist >= smoothDist) 
                 return dist - halfSmoothDist;
 
-            float x = (dist / smoothDist);
+            double x = (dist / smoothDist);
             return x * x * halfSmoothDist;
         }
-        
-        public static bool vec2IsFinite(Vector2 vec) => float.IsFinite(vec.X) & float.IsFinite(vec.Y);
-
 
         public static void InsertAtFirst<T>(T[] arr, T element)
         {
@@ -58,46 +47,26 @@ namespace Saturn
             for (int p = arr.Length - 1; p > 0; p--) arr[p] = arr[p - 1];
         }
 
-        public static float Smoothstep(float x, float start, float end)
-        {
-            x = Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
-            return x * x * (3.0f - 2.0f * x);
-        }
-
         public static double Smoothstep(double x, double start, double end)
         {
-            x = Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
-            return x * x * (3.0f - 2.0f * x);
+            x = Math.Clamp((x - start) / (end - start), 0.0, 1.0);
+            return x * x * (3.0 - 2.0 * x);
         }
 
-        public static float Step(float x, float start, float end) => Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
+        public static double Step(double x, double start, double end) => Math.Clamp((x - start) / (end - start), 0.0, 1.0);
 
-        public static double Step(double x, double start, double end) => Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
-
-        public static float Powstep(float x, float start, float end, float p)
-        {
-            x = Math.Clamp((x - start) / (end - start), 0.0f, 1.0f);
-            return MathF.Pow(x, p);
+        public static Double2 Trajectory(Double2 p0, Double2 p1, Double2 p2, double t) {
+            Double2 tMid = 0.5 * (p0 + p2);
+            return p2 + t * ((2.0 * p1) - p2 - tMid) + 0.5 * t * t * (2.0 * (tMid - p1));
         }
 
-        public static Vector2 Trajectory(Vector2 p0, Vector2 p1, Vector2 p2, float t) {
-            Vector2 tMid = 0.5f * (p0 + p2);
-            return p2 + t * ((2 * p1) - p2 - tMid) + 0.5f * t * t * (2 * (tMid - p1));
-        }
-        
-        public static Vector2 PathDiff(Vector2 s, Vector2 e, Vector2 p) {
-            Vector2 mp = p - s;
-            Vector2 me = e - s;
-            float ca = -MathF.Atan2(me.Y, me.X);
-            Vector2 rp = Rotate(mp, ca);
-            Vector2 re = Rotate(me, ca);
+        public static Double2 PathDiff(Double2 s, Double2 e, Double2 p) {
+            Double2 mp = p - s;
+            Double2 me = e - s;
+            double ca = -me.Angle();
+            Double2 rp = Double2.Rotate(mp, ca);
+            Double2 re = Double2.Rotate(me, ca);
             return rp - re;
-        }
-
-        public static Vector2 Rotate(Vector2 p, float a) {
-            float cosine = MathF.Cos(a);
-            float sine = MathF.Sin(a);
-            return new Vector2((cosine * p.X) - (sine * p.Y), (sine * p.X) + (cosine * p.Y));
         }
 
         public static void Identify(string name, ref int ID) 
@@ -177,7 +146,7 @@ namespace Saturn
             }
         }
 
-        /*public static void PlotD(string c, Vector2 p, bool t) 
+        public static void PlotD(string c, Double2 p, bool t) 
         {
             Console.Write(c + "x");
             Console.WriteLine(p.X);
@@ -187,8 +156,98 @@ namespace Saturn
                 Console.WriteLine("xx");
                 Console.WriteLine("dd");
             }
-        }*/
+        }
+        
+        public static void PointGraph(string c, Double2 p, long i) {
+            Console.WriteLine(c + "_{" + i + "}=(" + p.X + "," + -p.Y + ")");
+        }
     }
 
-    
+    public struct Double2 
+    {
+        public double X;
+        public double Y;
+
+        public Double2(double ix, double iy) 
+        {
+            this.X = ix;
+            this.Y = iy;
+        }
+
+        public Double2(Vector2 i) 
+        {
+            this.X = (double)i.X;
+            this.Y = (double)i.Y;
+        }
+
+        public static Double2 Zero => new Double2(0.0, 0.0);
+
+        public double LengthSquared() => (X * X + Y * Y);
+        public double Length() => Math.Sqrt(this.LengthSquared());
+        public static double DistanceSquared(Double2 a, Double2 b)
+        {
+            double cx = a.X - b.X;
+            double cy = a.Y - b.Y;
+            return cx * cx + cy * cy;
+        }
+        public static double Distance(Double2 a, Double2 b) => Math.Sqrt(DistanceSquared(a, b));
+        public Double2 Normalize() => (this != Double2.Zero) ? (this / this.Length()) : Double2.Zero;
+        public static double Dot(Double2 a, Double2 b) => (a.X * b.X + a.Y * b.Y);
+        public static double Cross(Double2 a, Double2 b) => (a.X * b.Y - a.Y * b.X);
+        public static double DotOfNormalized(Double2 a, Double2 b) => (a != Double2.Zero && b != Double2.Zero) ? Dot(a.Normalize(), b.Normalize()) : 0.0;
+        public static double CrossOfNormalized(Double2 a, Double2 b) => (a != Double2.Zero && b != Double2.Zero) ? Cross(a.Normalize(), b.Normalize()) : 0.0;
+
+        public bool IsFinite() => double.IsFinite(X + Y);
+
+        public double Angle() => Math.Atan2(Y, X);
+
+        public Double2 DefaultZero() => this.IsFinite() ? this : Double2.Zero;
+
+        public static Double2 Rotate(Double2 p, double a)
+        {
+            double cosine = Math.Cos(a);
+            double sine = Math.Sin(a);
+            return new Double2((cosine * p.X) - (sine * p.Y), (sine * p.X) + (cosine * p.Y));
+        }
+
+        public static Double2 Lerp(Double2 a, Double2 b, double c) {
+            double scale = Math.Clamp(c, 0.0, 1.0);
+            return new Double2(double.Lerp(a.X, b.X, c), double.Lerp(a.Y, b.Y, c));
+        }
+
+        public static Double2 Clamp(Double2 a, Double2 b, Double2 c) {
+            double dx = Math.Clamp(a.X, Math.Min(b.X, c.X), Math.Max(b.X, c.X));
+            double dy = Math.Clamp(a.Y, Math.Min(b.Y, c.Y), Math.Max(b.Y, c.Y));
+            return new Double2(dx, dy);
+        }
+
+        public override string ToString() => $"({X}, {Y})";
+
+        public Vector2 AsVector2() => new Vector2((float)X, (float)Y);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Double2 operator +(Double2 a, Double2 b) => new Double2(a.X + b.X, a.Y + b.Y);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Double2 operator -(Double2 a, Double2 b) => new Double2(a.X - b.X, a.Y - b.Y);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Double2 operator *(Double2 a, double b) => new Double2(a.X * b, a.Y * b);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Double2 operator *(double b, Double2 a) => (a * b);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Double2 operator /(Double2 a, double b) => new Double2(a.X / b, a.Y / b);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator ==(Double2 a, Double2 b) => (a.X == b.X && a.Y == b.Y);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator !=(Double2 a, Double2 b) => !(a == b);
+
+        public override bool Equals(object? x) => (x is Double2 b) ? (this.X == b.X && this.Y == b.Y) : false;
+
+        public override int GetHashCode() => HashCode.Combine(X, Y);
+    }
 }

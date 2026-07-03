@@ -296,7 +296,7 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
 
                 lastOutput = report.Position;
             }
-            
+
             reportIsFirstAfterConsume = false;
             base.OnOutput(value);
         }

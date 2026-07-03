@@ -22,20 +22,20 @@ namespace Saturn
             "That value is then multiplied back by the radius value,\n" +
             "and the output's axes are multiplied by their respective values.\n\n";
 
-        [Property("Radius"), DefaultPropertyValue(720.0f), ToolTip(
+        [Property("Radius"), DefaultPropertyValue(720.0), ToolTip(
             DFC_TOOLTIP +
             "Possible range: 0.0 - any, default 720.0\n\n" +
             "A smaller radius generally amplifies the effect of the power value.\n" +
             "This controls where the output position would be the same as the input position."
         )]
-        public float threshold
+        public double threshold
         {
-            set => _threshold = Math.Max(0.0f, value);
+            set => _threshold = Math.Max(0.0, value);
             get => _threshold;
         }
-        public float _threshold;
+        public double _threshold;
 
-        [Property("Power"), DefaultPropertyValue(1.0f), ToolTip(
+        [Property("Power"), DefaultPropertyValue(1.0), ToolTip(
             DFC_TOOLTIP +
             "Possible range: 0.0 - any, default 1.0\n\n" +
             "This decides the behavior of the filter.\n" +
@@ -45,48 +45,48 @@ namespace Saturn
             "rounding the display area out.\n" +
             "Useful values probably won't be beyond the range of 0.5 - 2."
             )]
-        public float dPower
+        public double dPower
         {
-            set => _dPower = Math.Max(0.0f, value);
+            set => _dPower = Math.Max(0.0, value);
             get => _dPower;
         }
-        public float _dPower;
+        public double _dPower;
 
         const string AXIS_TOOLTIP = 
             "Dividing the input on an axis by a value is different from multiplying the output by the inverse value.\n" +
             "If the values are the same, it effectively becomes a multiplier for the radius value on that axis.";
 
-        [Property("Horizontal Input Divisor"), DefaultPropertyValue(1.0f), ToolTip(AXIS_TOOLTIP)]
-        public float xDiv
+        [Property("Horizontal Input Divisor"), DefaultPropertyValue(1.0), ToolTip(AXIS_TOOLTIP)]
+        public double xDiv
         {
-            set => _xDiv = Math.Max(0.0f, value);
+            set => _xDiv = Math.Max(0.0, value);
             get => _xDiv;
         }
-        public float _xDiv;
+        public double _xDiv;
 
-        [Property("Vertical Input Divisor"), DefaultPropertyValue(1.0f), ToolTip(AXIS_TOOLTIP)]
-        public float yDiv
+        [Property("Vertical Input Divisor"), DefaultPropertyValue(1.0), ToolTip(AXIS_TOOLTIP)]
+        public double yDiv
         {
-            set => _yDiv = Math.Max(0.0f, value);
+            set => _yDiv = Math.Max(0.0, value);
             get => _yDiv;
         }
-        public float _yDiv;
+        public double _yDiv;
 
-        [Property("Horizontal Output Multiplier"), DefaultPropertyValue(1.0f), ToolTip(AXIS_TOOLTIP)]
-        public float xMul
+        [Property("Horizontal Output Multiplier"), DefaultPropertyValue(1.0), ToolTip(AXIS_TOOLTIP)]
+        public double xMul
         {
-            set => _xMul = Math.Max(0.0f, value);
+            set => _xMul = Math.Max(0.0, value);
             get => _xMul;
         }
-        public float _xMul;
+        public double _xMul;
 
-        [Property("Vertical Output Multiplier"), DefaultPropertyValue(1.0f), ToolTip(AXIS_TOOLTIP)]
-        public float yMul
+        [Property("Vertical Output Multiplier"), DefaultPropertyValue(1.0), ToolTip(AXIS_TOOLTIP)]
+        public double yMul
         {
-            set => _yMul = Math.Max(0.0f, value);
+            set => _yMul = Math.Max(0.0, value);
             get => _yMul;
         }
-        public float _yMul;
+        public double _yMul;
 
         public override event Action<IDeviceReport>? Emit;
 
@@ -95,41 +95,43 @@ namespace Saturn
             if (value is ITabletReport report) {
                 outputMode = GetOutputMode();
                 if (outputMode.Type == OutputType.absolute) {
-                    if ((dPower != 1f) && (dPower != 0f) && (yDiv != 0f) && (xDiv != 0f)) {
-                        displayCenter = GetDisplayCenter();
-                        displayArea = GetDisplayArea();
-                        edgeLengths = displayArea * 0.5f;
-                        Vector2 dist = report.Position - displayCenter;
+                    Double2 rPos = new Double2(report.Position);
+                    if ((dPower != 1) && (dPower != 0) && (yDiv != 0) && (xDiv != 0)) {
+                        displayCenter = new Double2(GetDisplayCenter());
+                        displayArea = new Double2(GetDisplayArea());
+                        edgeLengths = displayArea * 0.5;
+                        Double2 dist = rPos - displayCenter;
                         dist.X /= xDiv;
                         dist.Y /= yDiv;
-                        float ratio = dist.Length() / threshold;
-                        float low = 1.0f - MathF.Pow(1.0f - ratio, (1.0f / dPower));
-                        float high = MathF.Pow(ratio, dPower);
-                        float scale = ratio / MathF.Min(dPower, 1.0f);
+                        double ratio = dist.Length() / threshold;
+                        double low = 1.0 - Math.Pow(1.0 - ratio, (1.0 / dPower));
+                        double high = Math.Pow(ratio, dPower);
+                        double scale = ratio / Math.Min(dPower, 1.0);
 
-                        if (ratio >= 1.0f) {
+                        if (ratio >= 1.0) {
                             ratio = high;
                         }
                         else {
-                            ratio = float.Lerp(low, high, scale);
-                            if (dPower > 1.0f) {
-                                ratio = MathF.Max(ratio, float.Lerp(low, high, MathF.Pow(scale, dPower)));
+                            ratio = Double.Lerp(low, high, scale);
+                            if (dPower > 1.0) {
+                                ratio = Math.Max(ratio, double.Lerp(low, high, Math.Pow(scale, dPower)));
                             }
                         }
                     
-                        Vector2 output = (Default(Vector2.Normalize(dist), Vector2.Zero) * ratio * threshold);
+                        Double2 output = (dist.Normalize() * ratio * threshold);
                         output.X *= xMul;
                         output.Y *= yMul;
                         output += displayCenter;
-                        output = Vector2.Clamp(output, displayCenter - edgeLengths, displayCenter + edgeLengths);
-                        report.Position = output;
+                        output = Double2.Clamp(output, displayCenter - edgeLengths, displayCenter + edgeLengths);
+                        report.Position = output.AsVector2();
                     }
                 }
+                Console.WriteLine(report.Position);
             }
             Emit?.Invoke(value);
         }
 
         OutputMode outputMode;
-        Vector2 displayCenter, displayArea, edgeLengths;
+        Double2 displayCenter, displayArea, edgeLengths;
     }
 }
