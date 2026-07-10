@@ -626,7 +626,6 @@ namespace Saturn
 
         }
 
-
         void DAC() 
         {
             if (dacOuter > 0) {
@@ -686,6 +685,7 @@ namespace Saturn
             smoothHold += twcon * dist;
             smoothOutput = smoothHold;
 
+
             if (sepMult > 0 && mLength > 0) {
                 if (!(wireFlag) || updateTime / expect > 0.99) 
                     sepScale = Smoothstep(distLength, -0.01, smoothDist * sepMult);
@@ -695,7 +695,7 @@ namespace Saturn
 
             if (aResponse > 0) {
                 double aDist = Double2.Distance(smoothOutput, adaptOutput);
-                double aMod = (1 + Math.Log10(Math.Max(aResponse, 1))) * Math.Pow(Smoothstep(aDist, 3500 * aResponse * areaScale, (500 * Math.Sqrt(aResponse * areaScale)) - 1.0) * Smoothstep(accel[0] + Math.Max(0, jerk[0]) / spro(vel[0] / 250), 10 * areaScale, 50 * areaScale), 2.5 + aResponse * areaScale) * (0.5 + 0.5 * Double2.DotOfNormalized(ddir[0], dir[0]));
+                double aMod = (1 + Math.Log10(Math.Max(aResponse, 1))) * Math.Pow(Smoothstep(aDist, (3500 * aResponse * areaScale) + 100.0, (500 * Math.Sqrt(aResponse * areaScale)) - 1.0) * Smoothstep(accel[0] + Math.Max(0, jerk[0]) / spro(vel[0] / 250), 10 * areaScale, 50 * areaScale), 2.5 + aResponse * areaScale) * (0.5 + 0.5 * Double2.DotOfNormalized(ddir[0], dir[0]));
                 double weight = Math.Clamp(1 - aMod, 0, 1);
                 weight *= 1.0 - 0.75 * (Smoothstep(aDist, 1000 * areaScale, 5000 * areaScale) * Smoothstep(vel[0] + accel[0], 250 * areaScale, 500 * areaScale));
 
