@@ -27,15 +27,6 @@ namespace Saturn
 
         public static double spro(double x) => Math.Log(x + 1) + 1;
 
-        public static double DSFunction(double dist, double smoothDist, double halfSmoothDist) 
-        {
-            if (dist >= smoothDist) 
-                return dist - halfSmoothDist;
-
-            double x = (dist / smoothDist);
-            return x * x * halfSmoothDist;
-        }
-
         public static void InsertAtFirst<T>(T[] arr, T element)
         {
             for (int p = arr.Length - 1; p > 0; p--) arr[p] = arr[p - 1];

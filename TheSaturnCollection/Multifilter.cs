@@ -217,22 +217,31 @@ namespace Saturn
 
         protected override void ConsumeState()
         {
+            if (!configinit || config == null) {
+                ReadConfig();
+                configinit = true;
+                return;
+            }
+
             if (!init && !auxinit && State is IAuxReport aux) {
                 filter = new MultifilterCore(this);
                 filter.IDTablet(name, ref filter.tabletType);
                 auxinit = true;
             }
+
             if (init && (filter!.tabletType == 1 || filter!.tabletType == 2) && State is IProximityReport p) {
                 if (p.NearProximity == false) {
                     filter.emergency = 2;
                     filter.eflag = false;
                 }
             }
+
             if ((auxinit || init) && (filter!.tabletType == 6 && State is IAuxReport g620aux)) {
                 filter.auxButtons = (bool[])g620aux.AuxButtons.Clone();
                 filter.emergency = 5;
                 filter.eflag = false;
             }
+
             if (State is ITabletReport report) {  
                 if (!init) {
                     if (!auxinit){
@@ -263,22 +272,37 @@ namespace Saturn
 
         protected override void UpdateState()
         {
+            if (!configinit || config == null) {
+                ReadConfig();
+                configinit = true;
+                return;
+            }
+
             if (interp && State is ITabletReport report && PenIsInRange() && init) {   
                 filter!.HandleUpdate(report);
                 OnEmit();
             }
         }
 
+        public void ReadConfig() {
+            config = new MultifilterConfig();
+            configStatus = MultifilterConfigParser.ReadConfig(ref config, name);
+
+        }
+
         bool init;
         bool auxinit;
+        bool configinit;
+        int configStatus;
 
         MultifilterCore? filter;
+        public MultifilterConfig? config;
 
         [TabletReference]
         public TabletReference TabletReference { set { name = value.Properties.Name; } }
         public string name = string.Empty;
     }
-
+/*
     [PluginName("Saturn - Multifilter - Extra Settings")]
     public class MultifilterExtraSettings : ITool {
 
@@ -460,4 +484,5 @@ namespace Saturn
         public static bool ExEnabled = false;
         public static bool VecMatMul = false;
     }
+    */
 }

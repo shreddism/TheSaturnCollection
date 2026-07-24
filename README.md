@@ -8,7 +8,7 @@ Important: The multifilter used to be split into separate versions: one that did
 
 ### Most Recent Update
 
-0.10.3 - Releases page has update notes.
+1.0.0 - Releases page has update notes. This readme may be outdated in a way I haven't caught. Feel free to ask for help or an answer to a question on discord. (username: shreddism)
 
 ## Things You Should Probably Know
 
