@@ -84,7 +84,7 @@ namespace Saturn
         )]
         public double sepMult
         {
-            set => _sepMult = Math.Clamp(value, 0.5, 100000.0);
+            set => _sepMult = Math.Max(value, 0.5);
             get => _sepMult;
         }
         public double _sepMult;
@@ -205,13 +205,17 @@ namespace Saturn
         }
         public double _msOverride;
 
-        [BooleanProperty("Enable Extra Settings", ""), DefaultPropertyValue(false), ToolTip
+        [BooleanProperty("a", ""), DefaultPropertyValue(false), ToolTip
         (
-            "In Tools, there are more settings for the multifilter.\n" +
-            "However, they can only be configured for all tablets,\n" +
-            "so this controls where they are applied."
+            "a"
         )]
         public bool ExGate { set; get; }
+
+        [BooleanProperty("b", ""), DefaultPropertyValue(false), ToolTip
+        (
+            "b"
+        )]
+        public bool b { set; get; }
 
         public HPETDeltaStopwatch perf = new HPETDeltaStopwatch();
 

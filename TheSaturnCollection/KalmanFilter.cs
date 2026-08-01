@@ -6,6 +6,7 @@ using System.Runtime.Intrinsics.X86;
 using OpenTabletDriver.Plugin;
 using OpenTabletDriver.Plugin.Timing;
 using static Saturn.Utils;
+using static Saturn.MultifilterConfig;
 
 namespace Saturn 
 {
@@ -843,7 +844,7 @@ namespace Saturn
         public unsafe static Matrix operator *(Matrix a, Matrix b)
         {
             var result = new double[a.Rows, b.Cols];
-            if (true && Avx.IsSupported && a.Rows == 4 && a.Cols == 4 && b.Rows == 4 && b.Cols == 4) {
+            if (vmm && Avx.IsSupported && a.Rows == 4 && a.Cols == 4 && b.Rows == 4 && b.Cols == 4) {
                 fixed (double* pA = &a.data[0,0], pB = &b.data[0,0], pR = &result[0,0])
                 {
                     Vector256<double> b0 = Avx.LoadVector256(pB +  0);

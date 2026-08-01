@@ -9,22 +9,10 @@ using OpenTabletDriver.Plugin.Tablet;
 using OpenTabletDriver.Plugin.Timing;
 using OpenTabletDriver.Plugin.Attributes;
 
-
-
-
-
-
 namespace Saturn 
 {
     public class MultifilterConfig 
     {
-        public bool Enabled { get; private set; } = false;
-
-        public void Enable() {
-            
-            this.Enabled = true;
-        }
-
         public bool HoverSettingsEnabled { get; set; } = false;
         public double ReverseEmaHover { get; set; } = 1.0;
         public double StockEmaWeightHover { get; set; } = 1.0;
@@ -106,6 +94,17 @@ namespace Saturn
         public double AccelResponsePower { get; set; } = 3.0;
         public double AccelResponseBaseInnerDistanceThreshold { get; set; } = 500.0;
         public double AccelResponseBaseOuterDistanceThreshold { get; set; } = 3500.0;
+
+        public bool Enabled { get; private set; } = false;
+
+        public static bool vmm { get; private set; } = false;
+
+        public void Enable() {
+            this.Enabled = true;
+            if (VecMatMul) {
+                vmm = true;
+            }
+        }
 
     }
 
