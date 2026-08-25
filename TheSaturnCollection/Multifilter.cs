@@ -246,6 +246,10 @@ namespace Saturn
                 filter.eflag = false;
             }
 
+            if ((auxinit || init) && State is ITiltReport tiltReport) {
+                filter!.tilt = new Double2(tiltReport.Tilt);
+            }
+
             if (State is ITabletReport report) {  
                 if (!init) {
                     if (!auxinit){
@@ -290,8 +294,9 @@ namespace Saturn
 
         public void ReadConfig() {
             config = new MultifilterConfig();
-            configStatus = MultifilterConfigParser.ReadConfig(ref config, name);
-
+            if (ExGate) {
+                configStatus = MultifilterConfigParser.ReadConfig(ref config, name);
+            }
         }
 
         bool init;

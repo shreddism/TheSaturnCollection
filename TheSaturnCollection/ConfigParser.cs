@@ -95,8 +95,10 @@ namespace Saturn
         public double AccelResponseBaseInnerDistanceThreshold { get; set; } = 500.0;
         public double AccelResponseBaseOuterDistanceThreshold { get; set; } = 3500.0;
 
-        public bool Enabled { get; private set; } = false;
+        public int CompactFlags { get; set; } = 0;
 
+
+        public bool Enabled { get; private set; } = false;
         public static bool vmm { get; private set; } = false;
 
         public void Enable() {

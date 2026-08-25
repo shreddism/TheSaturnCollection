@@ -25,6 +25,8 @@ namespace Saturn
 
         public static double UAdjust(double a, double b) => 1 - Math.Pow(1 - a, b);
 
+        public static double inversion(double a, double b, double c) => Math.Pow(UAdjust(a, b), c);
+
         public static double spro(double x) => Math.Log(x + 1) + 1;
 
         public static void InsertAtFirst<T>(T[] arr, T element)
