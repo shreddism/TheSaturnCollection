@@ -20,11 +20,9 @@ namespace Saturn
         public double DistanceSmoothingHover { get; set; } = 0.0;
         public double SepMultHover { get; set; } = 1.0;
         public double AccelResponseHover { get; set; } = 0.0;
-        public double DirectionalAntichatterHover { get; set; } = 0.0;
         public double AreaScaleHover { get; set; } = 1.0;
         public double XModifierHover { get; set; } = 1.0;
         public double PredictionRatioHover { get; set; } = 1.0;
-        public double MsOverrideHover { get; set; } = 0.0;
 
         public double TimeScale { get; set; } = 1.0;
         public double DistanceSmoothingTimeScale { get; set; } = 1.0;
@@ -33,15 +31,11 @@ namespace Saturn
         public bool DisableTabletTweaks { get; set; } = false;
         public bool VecMatMul { get; set; } = false;
 
-        public bool ForceAltTiming { get; set; } = false;
-        public double AltTimingConfidence { get; set; } = 0.1;
-
         public int ScaleStockEmaWeightByMovement { get; set; } = 0;                   
         public int ScaleInnerRadiusByMovement { get; set; } = 0;
         public int ScaleDistanceSmoothingByMovement { get; set; } = 0;
         public int ScaleSepMultByMovement { get; set; } = 0;
         public int ScaleAccelResponseByMovement { get; set; } = 0;
-        public int ScaleDirectionalAntichatterByMovement { get; set; } = 0;
         public int ScaleAreaScaleByMovement { get; set; } = 0;
         public int ScaleXModifierByMovement { get; set; } = 0;
         public int ScalePredictionRatioByMovement { get; set; } = 0;
@@ -68,7 +62,6 @@ namespace Saturn
         public double StartDistanceSmoothingMult { get; set; } = 1.0;
         public double StartSepMultMult { get; set; } = 1.0;
         public double StartAccelResponseMult { get; set; } = 1.0;
-        public double StartDirectionalAntichatterMult { get; set; } = 1.0;
         public double StartAreaScaleMult { get; set; } = 1.0;
         public double StartXModifierMult { get; set; } = 1.0;
         public double StartPredictionRatioMult { get; set; } = 1.0;
@@ -81,7 +74,6 @@ namespace Saturn
         public double EndDistanceSmoothingMult { get; set; } = 1.0;
         public double EndSepMultMult { get; set; } = 1.0;
         public double EndAccelResponseMult { get; set; } = 1.0;
-        public double EndDirectionalAntichatterMult { get; set; } = 1.0;
         public double EndAreaScaleMult { get; set; } = 1.0;
         public double EndXModifierMult { get; set; } = 1.0;
         public double EndPredictionRatioMult { get; set; } = 1.0;
@@ -94,9 +86,6 @@ namespace Saturn
         public double AccelResponsePower { get; set; } = 3.0;
         public double AccelResponseBaseInnerDistanceThreshold { get; set; } = 500.0;
         public double AccelResponseBaseOuterDistanceThreshold { get; set; } = 3500.0;
-
-        public int CompactFlags { get; set; } = 0;
-
 
         public bool Enabled { get; private set; } = false;
         public static bool vmm { get; private set; } = false;

@@ -26,17 +26,18 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
             AttemptInitialization();
 
         bool dropFlag = false;
+
         if (initFlag) {
             if (deviceReport is ITabletReport report) {
-                reportIsFirstAfterConsume = true;
+
                 CustomResetAbsoluteModeBinding.bAuxFlag = false;
                 float readTime = (float)readStopwatch.Restart().TotalMilliseconds;
                 if (tTimeProximity && maxDrops > 0 && tResetTime > 0 && readTime > tResetTime) {
                     dropsRemaining = maxDrops + 1;
                     dropFlag = true;
-                }
+                } 
             }
-
+            
             if (maxDrops > 0 && deviceReport is IProximityReport proximityReport) {
                 if (proximityReport.NearProximity == false) {
                     dropsRemaining = maxDrops + 1;

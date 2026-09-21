@@ -6,13 +6,19 @@ namespace Saturn
 {
     public static class Utils 
     {   
-        public const int HMAX = 6;
+        public const int HMAX = 25
+;
         public const int KALMAN_STATES = 2;
     
         public static double Default(double a, double b) => double.IsFinite(a) ? a : b;
         public static double WireMultAdjust(double a, float be, double br, bool w) => w ? a * Math.Clamp(br / be, 0, 1.5) : a;
         public static double WirePowAdjust(double a, double be, double br, bool w) => w ? Math.Pow(a, Math.Max(be / br, 0.66)) : a;
-        public static double WireWeightAdjust(double a, double be, double br, bool w) => w ? 1 - Math.Pow(1 - Math.Clamp(a, 0, 1), Math.Clamp(br / be, 0, 1.5)) : a;
+        public static double WireWeightAdjust(double a, double be, double br, bool w) => w ? 1.0 - Math.Pow(1 - Math.Clamp(a, 0.0, 1.0), Math.Clamp(br / be, 0.0, 1.5)) : a;
+
+        public static double ExpAccel(double a, double b) => b == 0.0 ? a : (Math.Log((a * b) + 1.0)) / b;
+        public static double ExpDecel(double a, double b) => b < 0.0 ? a : (Math.Exp(a * b) - 1.0) / b;
+
+        public static double ExpReact(double a, double b) => b == 0.0 ? a : b > 0.0 ? ExpAccel(a, b) : ExpDecel(a, -b);
 
         public static double XWA(double be, double br, bool b, double ce, double cr, bool c) 
         {
@@ -35,6 +41,23 @@ namespace Saturn
             arr[0] = element;
         }
 
+        public static Double2 AvgMinusExtremes(Double2[] arr, int start, int num) {
+            Double2 sum = Double2.Zero;
+            Double2 max = Double2.Zero;
+            Double2 min = Double2.Zero;
+            for (int i = start; i < start + num; i++) {
+                sum += arr[i];
+                if (max.Length() < arr[i].Length()) {
+                    max = arr[i];
+                }
+                else if (min.Length() > arr[i].Length()) {
+                    min = arr[i];
+                }
+            }
+
+            return ((sum - max - min) / ((double)num - 2.0));
+        }
+
         public static void NonInsertAtFirst<T>(T[] arr)
         {
             for (int p = arr.Length - 1; p > 0; p--) arr[p] = arr[p - 1];
@@ -45,7 +68,7 @@ namespace Saturn
             x = Math.Clamp((x - start) / (end - start), 0.0, 1.0);
             return x * x * (3.0 - 2.0 * x);
         }
-
+            
         public static double Step(double x, double start, double end) => Math.Clamp((x - start) / (end - start), 0.0, 1.0);
 
         public static Double2 Trajectory(Double2 p0, Double2 p1, Double2 p2, double t) {
@@ -213,6 +236,10 @@ namespace Saturn
             double dy = Math.Clamp(a.Y, Math.Min(b.Y, c.Y), Math.Max(b.Y, c.Y));
             return new Double2(dx, dy);
         }
+
+        public static Double2 Max(Double2 a, Double2 b) => (a.LengthSquared() >= b.LengthSquared()) ? a : b;
+
+        public static Double2 Min(Double2 a, Double2 b) => (a.LengthSquared() <= b.LengthSquared()) ? a : b;
 
         public override string ToString() => $"({X}, {Y})";
 
