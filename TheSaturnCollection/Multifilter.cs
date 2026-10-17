@@ -230,7 +230,7 @@ namespace Saturn
                 }
 
                 if (!interp) {
-                    Vector2 output = filter.fipos[0].AsVector2();                    
+                    report.Position = filter.fipos[0].AsVector2();
                     OnEmit();
                 }
             }
