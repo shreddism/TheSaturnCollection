@@ -349,6 +349,8 @@ namespace Saturn
             }
 
             InsertAtFirst(smpos, smoothed);
+
+            
             InsertAtFirst(dir, smpos[0] - smpos[1]);
             InsertAtFirst(vel, dir[0].Length());
             InsertAtFirst(ddir, dir[0] - dir[1]);
@@ -356,6 +358,7 @@ namespace Saturn
             InsertAtFirst(jerk, accel[0] - accel[1]);
             InsertAtFirst(pointaccel, ddir[0].Length());
             InsertAtFirst(pressure, report.Pressure);
+
 
             if (config!.Enabled)
                 ScaleValues(); 
@@ -398,6 +401,11 @@ namespace Saturn
             if (pointFlag) {
                 startOutput = stpos[0];
                 FilterPass();
+
+                if (!interp) {
+                    filterOutput.X /= xModU;
+                }
+
                 InsertAtFirst(fipos, filterOutput);
             }
         }
@@ -525,6 +533,7 @@ namespace Saturn
                 clampOutput += ringDir;
 
                 if (ringDirLength > 0) {
+                    
                     double xwa = XWA(expect, updateTime, wireAdjustFlag, reportMsAvg, expect, pointFlag);
 
                     double txwa = (ExGate && config!.Enabled && (timeScaleU != 1.0)) ? 
@@ -532,24 +541,32 @@ namespace Saturn
                         xwa;
 
                     clampOutput = Double2.Lerp(clampOutput, input, UAdjust(inversion(Smoothstep(ringDirLength, -0.01, rInnerU + 5.0), 1.75, 1.333), txwa));
-                    
-                    accumulatedRFMovementTime += rfStopwatch.Restart().TotalMilliseconds;
 
+                    double newDistLength = Double2.Distance(input, clampOutput);
+
+                    accumulatedRFMovementTime += rfStopwatch.Restart().TotalMilliseconds;
+                    
                     accumulatedRFMovementTime = Math.Min(accumulatedRFMovementTime, 100.0);
 
                     double moveIndex = Smoothstep(accumulatedRFMovementTime, 0.0, 100.0);
 
-                    double newDistLength = Double2.Distance(input, clampOutput);
-
-                    if (newDistLength < 1.0 && accumulatedRFMovementTime > 20.0) {
-                        clampOutput = input;
+                    if (clampLock == 0) {
+                        if (newDistLength < 1.0 && accumulatedRFMovementTime > 20.0) {
+                            clampOutput = input;
+                        }
+                        else {
+                            clampOutput = Double2.Lerp(clampOutput, input, UAdjust((0.05 + 0.95 * Math.Pow(Step(newDistLength, 5.0, 0.5), 5.0)) * moveIndex * Math.Pow(Step(newDistLength, rInnerU * 0.5, 1.0), 10.0), txwa));
+                        }
+                        if (clampOutput == input) {
+                            clampLock = 2;
+                        }
                     }
                     else {
-                        clampOutput = Double2.Lerp(clampOutput, input, UAdjust((0.05 + 0.95 * Math.Pow(Step(newDistLength, 5.0, 0.5), 5.0)) * moveIndex * Math.Pow(Step(newDistLength, rInnerU * 0.5, 1.0), 10.0), txwa));
+                        clampOutput = input;
                     }
-
                 }
                 else {
+                    clampLock = Math.Max(clampLock - 1, 0);
                     accumulatedRFMovementTime -= 5.0 * rfStopwatch.Restart().TotalMilliseconds;
                     accumulatedRFMovementTime = Math.Max(accumulatedRFMovementTime, 0.0);
                 }
@@ -600,6 +617,7 @@ namespace Saturn
                 double aMod = (1 + Math.Log10(Math.Max(aResponseU, 1))) * Math.Pow(Smoothstep(aDist, (accelResponseOuter * aResponseU * areaScaleU) + 100.0, (accelResponseInner * aResponseU * areaScale) - 1.0) * aFactor1, accelResponsePower + aResponseU) * (0.5 + 0.5 * aFactor2);
                 double weight = Math.Clamp(1 - aMod, 0, 1);
                 weight *= 1.0 - 0.75 * (Smoothstep(aDist, 1000 * areaScaleU, 5000 * areaScaleU) * aFactor3);
+
 
                 double tweight = (ExGate && config!.Enabled && (timeScaleU != 1.0) && (weight != 1.0)) ?
                     UAdjust(weight, timeScaleU) :
@@ -668,47 +686,6 @@ namespace Saturn
             if (kf != null) {
                 kf.SwapID(i);
             }
-        }
-
-        Double2 RTrajectory(double t, Double2 v3, Double2 v2, Double2 v1)
-        {
-            var mid = 0.5 * (v1 + v3);
-            var accel = 2 * (mid - v2);
-            var vel = 2 * v2 - v3 - mid;
-
-            // if there is acceleration, then start spacing points evenly using integrals
-            if (Double2.Dot(accel, accel) > 0.001)
-            {
-                int floor = (int)Math.Floor(t);
-                var _vel = vel + accel * floor;
-
-                // if any of the inputs have changed, recalculate arcArr
-                if ((_floor != floor) || (_v1 != v1) || (_v2 != v2) || (_v3 != v3))
-                {
-                    _v1 = v1;
-                    _v2 = v2;
-                    _v3 = v3;
-                    _floor = floor;
-                    arcTar = 0;
-
-                    for (int _t = 0; _t < steps; _t++)
-                    {
-                        arcArr[_t] = arcTar;
-                        arcTar += (_vel + _t * dt * accel).Length();
-                    }
-                }
-
-                double _arcTar = arcTar * (t - floor);
-
-                for (int _t = 0; _t < steps; _t++)
-                {
-                    if (arcArr[_t] < _arcTar) continue;
-                    t = _t * dt + floor;
-                    break;
-                }
-            }
-
-            return v3 + t * vel + 0.5 * t * t * accel;
         }
 
         public void IDTablet(string name, ref int tabletType) {
@@ -897,6 +874,8 @@ namespace Saturn
         public double[] pointaccel = new double[HMAX];
         public double[] cross = new double[HMAX]; 
 
+        public int clampLock;
+
         public uint[] pressure = new uint[HMAX];
         public Double2 startOutput, outputInternal;
         public Double2 lastOutputPos, dirOfOutput;
@@ -913,6 +892,7 @@ namespace Saturn
         public double rs;
         public double lastTime;
         public double tOverride;
+        public double distLengthSignificance;
         public bool modLikely;
         public bool iflag;
         public bool timeFloor;
@@ -938,12 +918,6 @@ namespace Saturn
         public double secAvg = 0.005;
         public double consumeDelta;
         public HPETDeltaStopwatch runningStopwatch = new HPETDeltaStopwatch(true);
-        private static readonly int steps = 256;
-        private static readonly double dt = 1 / steps;
-        private double[] arcArr = new double[steps];
-        private double arcTar = 0;
-        private Double2 _v1, _v2, _v3;
-        private int _floor;
 
         public double frameShift, reverseSmoothing, dacOuter;
         public string wireMode;

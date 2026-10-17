@@ -3,7 +3,8 @@ using System.Numerics;
 using OpenTabletDriver.Plugin.Attributes;
 using OpenTabletDriver.Plugin.Output;
 using OpenTabletDriver.Plugin.Tablet;
-using OpenTabletDriver.Plugin.Timing;       
+using OpenTabletDriver.Plugin.Timing;  
+using static Saturn.Utils;     
 
 namespace Saturn
 {
@@ -17,17 +18,19 @@ namespace Saturn
         public PipelinePosition Position => PipelinePosition.PreTransform;
 
         private HPETDeltaStopwatch reportStopwatch = new HPETDeltaStopwatch();
+        private HPETDeltaStopwatch perfStopwatch = new HPETDeltaStopwatch();
 
-        [Property("Noise Amount (Warning: Hover Over the Textbox and Read This Tooltip)"), DefaultPropertyValue(7f), ToolTip
+        [Property("Noise Amount (Warning: Hover Over the Textbox and Read This Tooltip)"), DefaultPropertyValue(6f), ToolTip
         (
             "This probably should be the very first filter that your input passes through. However, this may not be the case.\n" +
             "To make sure, save your OTD settings as a file, edit the file so that this filter is at the top, then load the settings file and save.\n\n" +
 
-            "This filter is primarily designed for high report-rate tablets which could use a little pure noise cancellation.\n" +
-            "It was not designed with the question 'What makes the feel good for the user?' in mind. Rather, it attempts to target report-to-report signal noise, even under motion.\n" +
-            "This was tested on a PTK-470 that runs at 1000hz. The default settings are good in this use case. It's not known how well these work on other tablets.\n\n" +
+            "This filter is primarily designed for high report-rate tablets which could use a little noise filtering.\n" +
+            "It attempts to target report-to-report signal noise, even under motion.\n" +
+            "This was tested on a PTK-470 that runs at 1000hz. The default settings are good in this use case.\n" +
+            "You will likely not need to touch any other setting.\n\n" +
 
-            "Possible range: 0.0 - any, default 7.0\n\n" +
+            "Possible range: 0.0 - any, default 5.0\n\n" +
 
             "Most of the filter's internal behavior is dictated by this value. It can consider deviation within this amount negligible unless it accumulates."
         )]
@@ -50,21 +53,7 @@ namespace Saturn
         }
         public float _vMult;
 
-        [Property("Error Accumulation"), DefaultPropertyValue(0.65f), ToolTip
-        (
-             "Possible range: 0.0 - 1.0, default 0.65\n\n" +
-
-             "Both raw error and accumulated error are used.\n" +
-             "Accumulated error has raw error added to it, and then is multiplied by this value.\n" +
-             "A higher value is more sensitive to slight accumulated error. This probably should not go below 0.5."
-        )]
-        public float probMult { 
-            set => _probMult = Math.Clamp(value, 0f, 1f);
-            get => _probMult;
-        }
-        public float _probMult;
-
-        [Property("Baseline Time Scale"), DefaultPropertyValue(1f), ToolTip
+        [Property("Time Scale"), DefaultPropertyValue(1f), ToolTip
         (
             "Possible range: 0.0 - any, default 1.0\n\n" +
 
@@ -102,17 +91,16 @@ namespace Saturn
         }
         public float _cStrength;
 
-        [BooleanProperty("Chained Correction", ""), DefaultPropertyValue(false), ToolTip
+        [BooleanProperty("Jerk Response Increase", ""), DefaultPropertyValue(true), ToolTip
         (
-            "If enabled, 1/2 of direction's correction will be applied to acceleration,\n" +
-            "1/2 of position's correction will be applied to acceleration,\n" +
-            "and 1/4 of position's correction will be applied to acceleration."
+            "If enabled, motion over a safe timeframe that assumes 1000Hz will be tracked and will\n" +
+            "increase sensitivity when acceleration is changing at a rate far past what noise could cause."
         )]
-        public bool cChain { 
-            set => _cChain = value;
-            get => _cChain;
+        public bool ajResponse { 
+            set => _ajResponse = value;
+            get => _ajResponse;
         }
-        public bool _cChain;
+        public bool _ajResponse;
 
         public event Action<IDeviceReport>? Emit;
 
@@ -136,65 +124,65 @@ namespace Saturn
                     return;
                 }
 
-                    currDirection = report.Position - lastPos;
-
-                    currAccel = currDirection - lastDirection;   
-
+                if (ajResponse) {
+                    UpdateTable(report.Position);
+                    float responseUrgency = fSmoothstep(simplej[7].Length(), (noiseAmount * 2f) + 50f, (noiseAmount * 4f) + 100f);
+                    conf = noiseAmount * (1.0f - 0.5f * responseUrgency);
+                    cAmount = fInversion(cStrength, 1.0f + 0.5f * responseUrgency);
+                }
+                else {
                     conf = noiseAmount;
+                    cAmount = cStrength;
+                }
 
-                    usedAccel = Vector2.Lerp(usedAccel, currAccel, fInversion(0.1f, timeScale));
+                currDirection = report.Position - lastPos;
 
-                    accelProb += usedAccel - currAccel;
+                currAccel = currDirection - lastDirection;   
 
-                    accelProb *= probMult;
+                usedAccel = Vector2.Lerp(usedAccel, currAccel, fInversion(0.1f, timeScale));
 
-                    Vector2 aDiff = (Math.Max(fSmoothstep(currAccel.Length(), conf * 4f, conf * 6f), fSmoothstep(accelProb.Length(), conf * 2f, conf * 3f))) * Math.Max(Vector2.Distance(usedAccel, currAccel) - conf * 2f, 0f) * Normalize(currAccel - usedAccel);
-                    
-                    usedAccel += cStrength * aDiff;
-                    
-                    usedDir += vMult * usedAccel * fSmoothstep(usedAccel.Length(), conf * 0.25f, conf);
+                accelProb += usedAccel - currAccel;
 
-                    usedDir = Vector2.Lerp(usedDir, currDirection, fInversion(0.15f, timeScale));
+                accelProb *= fInversion(0.65f, timeScale);
 
-                    dirProb += usedDir - currDirection;
-
-                    dirProb *= probMult;
-
-                    Vector2 vDiff = Math.Max(fSmoothstep(currDirection.Length(), conf * 2f, conf * 3f), fSmoothstep(dirProb.Length(), conf, conf * 1.5f)) * Math.Max(Vector2.Distance(usedDir, currDirection) - 1f * conf, 0f) * Normalize(currDirection - usedDir);
+                Vector2 aDiff = (Math.Max(fSmoothstep(currAccel.Length(), conf * 4f, conf * 6f), fSmoothstep(accelProb.Length(), conf * 2f, conf * 3f))) * Math.Max(Vector2.Distance(usedAccel, currAccel) - conf * 2f, 0f) * Normalize(currAccel - usedAccel);
                 
-                    usedDir += cStrength * vDiff;
-
-                    if (cChain) {
-                        usedAccel += (cStrength * 0.5f) * vDiff;
-                    }
-                    
-                    outputPos += fSmoothstep(Vector2.Distance(outputPos, report.Position), 0, conf * 0.25f) * vMult * fSmoothstep(usedDir.Length(), conf * 0.05f, conf * 0.33f) * usedDir;
-
-                    outputPos = Vector2.Lerp(outputPos, report.Position, fInversion(0.1f * fSmoothstep(usedDir.Length(), conf * 5f, 0f), timeScale));
-
-                    positionProb += outputPos - report.Position;
-                    
-                    positionProb *= probMult;
-
-                    Vector2 pDiff = Math.Max(fSmoothstep(Vector2.Distance(outputPos, report.Position), conf * 1f * fSmoothstep(usedDir.Length(), conf, 0f), conf * posSlack), fSmoothstep(positionProb.Length(), conf * 0.5f * posSlack, conf * posSlack)) * Math.Max(Vector2.Distance(outputPos, report.Position) - conf * 0.5f, 0f) * Normalize(report.Position - outputPos);
-
-                    outputPos += (cStrength) * pDiff;
-
-                    if (cChain) {
-                    usedDir += (cStrength * 0.5f) * pDiff;
-                    usedAccel += (cStrength * 0.25f) * pDiff;
-                    }
+                usedAccel += cAmount * aDiff;
                 
-                    lastPos = report.Position;
-                    lastDirection = currDirection;
+                usedDir += vMult * usedAccel * fSmoothstep(usedAccel.Length(), conf * 0.25f, conf);
 
-                    init = true;
-                    if (!float.IsFinite(outputPos.X) || !float.IsFinite(outputPos.Y)) {
-                        outputPos = report.Position;
-                        init = false;
-                    }
+                usedDir = Vector2.Lerp(usedDir, currDirection, fInversion(0.15f, timeScale));
 
-                    report.Position = outputPos;        
+                dirProb += usedDir - currDirection;
+
+                dirProb *= fInversion(0.65f, timeScale);
+
+                Vector2 vDiff = Math.Max(fSmoothstep(currDirection.Length(), conf * 2f, conf * 3f), fSmoothstep(dirProb.Length(), conf, conf * 1.5f)) * Math.Max(Vector2.Distance(usedDir, currDirection) - 1f * conf, 0f) * Normalize(currDirection - usedDir);
+            
+                usedDir += cAmount * vDiff;
+                
+                outputPos += fSmoothstep(Vector2.Distance(outputPos, report.Position), 0, conf * 0.25f) * vMult * fSmoothstep(usedDir.Length(), conf * 0.05f, conf * 0.33f) * usedDir;
+
+                outputPos = Vector2.Lerp(outputPos, report.Position, fInversion(0.1f * fSmoothstep(usedDir.Length(), conf * 5f, 0f), timeScale));
+
+                positionProb += outputPos - report.Position;
+                
+                positionProb *= fInversion(0.65f, timeScale);
+
+                Vector2 pDiff = Math.Max(fSmoothstep(Vector2.Distance(outputPos, report.Position), conf * 1f * fSmoothstep(usedDir.Length(), conf, 0f), conf * posSlack), fSmoothstep(positionProb.Length(), conf * 0.5f * posSlack, conf * posSlack)) * Math.Max(Vector2.Distance(outputPos, report.Position) - conf * 0.5f, 0f) * Normalize(report.Position - outputPos);
+
+                outputPos += (cAmount) * pDiff;
+            
+                lastPos = report.Position;
+                lastDirection = currDirection;
+
+                init = true;
+                if (!float.IsFinite(outputPos.X) || !float.IsFinite(outputPos.Y)) {
+                    outputPos = report.Position;
+                    init = false;
+                }
+
+                report.Position = outputPos;        
             }
             Emit?.Invoke(value);
         }
@@ -202,7 +190,7 @@ namespace Saturn
         Vector2 outputPos, lastPos, lastDirection, currAccel, usedAccel;
         Vector2 currDirection, usedDir;
         Vector2 positionProb, dirProb, accelProb;
-        float conf;
+        float conf, cAmount;
         bool init;
 
         public static float fSmoothstep(float x, float start, float end)
@@ -215,7 +203,23 @@ namespace Saturn
             return 1.0f - MathF.Pow(1.0f - x, pow);
         }
 
-        public Vector2 Normalize(Vector2 a) => (a != Vector2.Zero) ? (a / a.Length()) : Vector2.Zero;
+        Vector2[] pos = new Vector2[force_table_history * 5];
 
+        const int force_table_history = 8;
+        Vector2[] simplev = new Vector2[force_table_history];
+        Vector2[] simplea = new Vector2[force_table_history];
+        Vector2[] simplej = new Vector2[force_table_history];
+        public void UpdateTable(Vector2 position) {
+            InsertAtFirst(pos, position);
+            for (int i = 0; i < force_table_history; i++) {
+                int t1 = i + 1;
+                float div = (float)t1;
+                simplev[i] = (pos[0] - pos[t1]) / div;
+                simplea[i] = ((simplev[i]) - (pos[t1] - pos[t1 * 2])) / (div * div);
+                simplej[i] = ((simplea[i]) - ((pos[t1 * 2] - pos[t1 * 3]) - (pos[t1 * 3] - pos[t1 * 4]))) / (div / div);
+            }
+        }
+
+        public Vector2 Normalize(Vector2 a) => (a != Vector2.Zero) ? (a / a.Length()) : Vector2.Zero;
     }
 }
