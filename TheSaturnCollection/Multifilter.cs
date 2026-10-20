@@ -3,6 +3,7 @@ using System.Numerics;
 using OpenTabletDriver.Plugin.Attributes;
 using System.Runtime.Intrinsics.X86;
 using OpenTabletDriver.Plugin;
+using OpenTabletDriver.Plugin.DependencyInjection;
 using OpenTabletDriver.Plugin.Output;
 using OpenTabletDriver.Plugin.Tablet;
 using OpenTabletDriver.Plugin.Timing;
@@ -187,50 +188,35 @@ namespace Saturn
 
         protected override void ConsumeState()
         {
-            if (!configinit || config == null) {
-                ReadConfig();
-                configinit = true;
-                return;
-            }
+            if (!init) return;
 
-            if (!init && !auxinit && State is IAuxReport aux) {
-                filter = new MultifilterCore(this);
-                auxinit = true;
-            }
-
-            if (init && (filter!.tabletType == 1 || filter!.tabletType == 2) && State is IProximityReport p) {
+            if ((filter!.tabletType == 1 || filter.tabletType == 2) && State is IProximityReport p) {
                 if (p.NearProximity == false) {
                     filter.emergency = 2;
                     filter.eflag = false;
                 }
             }
 
-            if ((auxinit || init) && (filter!.tabletType == 6 && State is IAuxReport g620aux)) {
+            if ((filter.tabletType == 6 && State is IAuxReport g620aux)) {
                 filter.auxButtons = (bool[])g620aux.AuxButtons.Clone();
                 filter.emergency = 5;
                 filter.eflag = false;
             }
 
             if (State is ITabletReport report) {  
-                if (!init) {
-                    if (!auxinit){
-                        filter = new MultifilterCore(this);
-                    }
-                    if (filter != null) {
-                        filter!.Initialize(report);
-                        init = true;
-                    }
+                if (!filter.init) {
+                    filter.Initialize(report);
                     OnEmit();
                     return;
                 }
-                filter!.HandleConsume(report);
+                filter.HandleConsume(report);
 
                 if (filter.wireFlag) {
                     UpdateState();
                 }
 
                 if (!interp) {
-                    report.Position = filter.fipos[0].AsVector2();
+                    report.Position = filter.intpos[0].AsVector2();
                     OnEmit();
                 }
             }
@@ -241,43 +227,42 @@ namespace Saturn
 
         protected override void UpdateState()
         {
-            if (!configinit || config == null) {
-                ReadConfig();
-                configinit = true;
-                return;
-            }
-
-            if (interp && State is ITabletReport report && PenIsInRange() && init) {   
+            if (init && interp && State is ITabletReport report && PenIsInRange()) {   
                 filter!.HandleUpdate(report);
                 OnEmit();
             }
         }
 
-        public void ReadConfig() {
-            config = new MultifilterConfig();
+        [OnDependencyLoad]
+        public void Initialize() 
+        {
+            if (!init && Tablet != null) {
+                ReadConfig();
+                filter = new MultifilterCore(this);
+                init = true;
+            }
+        }
+
+        public void ReadConfig() 
+        {
             if (ExGate) {
-                configStatus = MultifilterConfigParser.ReadConfig(ref config, name);
+                configStatus = MultifilterConfigParser.ReadConfig(ref config, Tablet!.Properties.Name);
                 if (configStatus != 0) {
                     config = new MultifilterConfig();
                     Log.Write("Multifilter", "Config file could not be read. Resetting to defaults.", LogLevel.Warning, false, false);
                 }
                 else {
                     Log.Write("Multifilter", "Config file read successfully.", LogLevel.Info, false, false);
-
                 }
             }
         }
-
         bool init;
-        bool auxinit;
-        bool configinit;
-        int configStatus;
+        int configStatus = 0;
 
         MultifilterCore? filter;
-        public MultifilterConfig? config;
+        public MultifilterConfig config = new MultifilterConfig();
 
         [TabletReference]
-        public TabletReference TabletReference { set { name = value.Properties.Name; } }
-        public string name = string.Empty;
+        public TabletReference? Tablet { get; set; }
     }
 }

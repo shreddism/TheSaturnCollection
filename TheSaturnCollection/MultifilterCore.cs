@@ -14,7 +14,6 @@ namespace Saturn
     {
         public MultifilterCore(Multifilter m) 
         {
-
             savedFilter = m;
             config = m.config;
             ExGate = m.ExGate;
@@ -31,7 +30,7 @@ namespace Saturn
             interp = m.interp;
             tabletToggle = !(ExGate && config!.Enabled && config!.DisableTabletTweaks);
             Frequency = m.Frequency;
-            name = m.name;
+            name = m.Tablet!.Properties.Name;
 
             if (tabletToggle)
                 IDTablet(name, ref tabletType);
@@ -75,6 +74,7 @@ namespace Saturn
 
             ResetValues(new Double2(rPos.X * xModU, rPos.Y));
 
+            init = true;
 
             emergency = 3;
             eflag = false;
@@ -92,6 +92,8 @@ namespace Saturn
                     }
                 }
             }
+
+            filterPointStatsUpdated = false;
 
             if (tick < long.MaxValue) tick++;
             if (gtick < long.MaxValue) gtick++;
@@ -123,23 +125,22 @@ namespace Saturn
 
             consume = true;
 
-            InsertAtFirst(reportTime, (double)reportStopwatch.Restart().TotalMilliseconds);
-            consumeDelta = reportTime[0] / 1000.0;
+            reportTime = (double)reportStopwatch.Restart().TotalMilliseconds;
+            consumeDelta = reportTime / 1000.0;
 
-            if (reportTime[0]< 25.0 && reportTime[0] > 0.01) {
+            if (reportTime < 25.0 && reportTime > 0.01) {
                 if (emergency > 0) 
                     emergency--;
 
-                    reportMsAvg += ((reportTime[0] - reportMsAvg) * 0.1);
+                    reportMsAvg += ((reportTime - reportMsAvg) * 0.1);
 
                 if (interp && msOverride == 0) {
                     rpsAvg += (1.0 / (consumeDelta) - rpsAvg) * (1.0 - Math.Exp(-2.0 * (consumeDelta)));
                     secAvg = 1.0 / rpsAvg;
                     msAvg = 1000.0 * secAvg;
-                    correctWeight = startCorrectWeight * expect * (msStandard / reportMsAvg);
                 }
 
-                if ((tick > 50) && (tabletType >= 0)) {
+                if ((tick > 50) && (tick < 1000) && (tabletType >= 0)) {
 
                     if (tabletType == 1 && reportMsAvg <= 2.5) {
                         SwapID(-1);
@@ -180,8 +181,6 @@ namespace Saturn
 
                     }
                 }
-
-                timeFloor = false;
             }
             else {
                 emergency = 4;
@@ -236,7 +235,7 @@ namespace Saturn
 
                 if (eflag) {
                     if (!pointFlag) {
-                        startOutput = pos[0];
+                        filterStart = pos[0];
                         FilterPass();
                     }                
                     double eTime = ((double)reportStopwatch.Elapsed.TotalSeconds * Frequency / reportMsAvg) * (expect);
@@ -249,7 +248,6 @@ namespace Saturn
                 }
                 else { 
                     ERefresh();
-                    emPos = pos[0];
                     unconvertedOutput = new Double2(filterOutput.X / xModU, filterOutput.Y);
                     report.Position = unconvertedOutput.AsVector2();
                     lastOutputPos = unconvertedOutput;
@@ -283,26 +281,19 @@ namespace Saturn
                 lastTime = t;
             }
 
-            if (pointFlag) {
-                if (tabletType >= 0) {
-                    outputInternal = Trajectory(fipos[0], fipos[1], fipos[2], t);
-                }
-                else {
-                    outputInternal = Double2.Lerp(fipos[1], fipos[0], Math.Clamp(t - 1.0, 0.0, 1.0));
-                }
-                
+            if (tabletType >= 0) {
+                startOutput = Trajectory(intpos[0], intpos[1], intpos[2], t);
             }
             else {
-                if (tabletType >= 0) {
-                    startOutput = Trajectory(stpos[0], stpos[1], stpos[2], t);
-                }
-                else {
-                    startOutput = Double2.Lerp(stpos[1], stpos[0], Math.Clamp(t - 1.0, 0.0, 1.0));
-                }
+                startOutput = Double2.Lerp(intpos[1], intpos[0], Math.Clamp(t - 1.0, 0.0, 1.0));
+            }
 
+            if (!pointFlag) {
+                filterStart = startOutput;
                 FilterPass();
                 outputInternal = filterOutput;
             }
+            else outputInternal = startOutput;
 
             emPos = outputInternal;
             unconvertedOutput = new Double2(outputInternal.X / xModU, outputInternal.Y);
@@ -313,12 +304,12 @@ namespace Saturn
 
             if (!(unconvertedOutput + startOutput + clampOutput + smoothOutput + adaptOutput + filterOutput + outputInternal).IsFinite()) {
                 ERefresh();
-                emPos = pos[0];
                 eflag = false;
                 emergency = 5;
                 ResetValues(pos[0]);
                 unconvertedOutput = new Double2(outputInternal.X / xModU, outputInternal.Y);
                 report.Position = unconvertedOutput.AsVector2();
+                Log.Write("Multifilter", "A position value is not finite. Setting all filter outputs to raw position", LogLevel.Error, false, false);
             }       
 
             consume = false;
@@ -330,35 +321,16 @@ namespace Saturn
             InsertAtFirst(rawpos, new Double2(report.Position));
             InsertAtFirst(rawdir, rawpos[0] - rawpos[1]);
             pos[0].X *= xModU;
-            Double2 smoothed = pos[0];
-
-            if ((savedFilter.reverseSmoothing < 1 && savedFilter.reverseSmoothing > 0) || (ExGate && config!.Enabled && config!.ReverseEmaHover < 1 && config!.ReverseEmaHover > 0)) {
-                double brs = reverseSmoothing;
-                if ((rawdir[0].Length() <= 1.42 && rawdir[1].Length() <= 1.42) || (tabletType == 6 && (pressure[0] == 0 && (rawdir[0].Length() < 6 || rawdir[1] == Double2.Zero  || rawdir[2] == Double2.Zero  || rawdir[3] == Double2.Zero)))) {
-                    brs = 1;
-                }
-
-                if (brs >= rs) rs = brs;
-                else {
-                    double tScale = 0.1 + 0.4 * Smoothstep(rawdir[0].Length(), 6, (pressure[0] > 0 ? 25 : 50));
-                    tScale *= 1.0 + Smoothstep(rawdir[0].Length() - rawdir[1].Length(), 0, (pressure[0] > 0 ? 10 : 20));
-                    rs = tScale * brs + (1.0 - tScale) * rs;
-                    if (rs < brs * (1.0 + tScale / (pressure[0] > 0 ? 5.0 : 10.0))) rs = brs;
-                }
-                smoothed = pos[1] + (pos[0] - pos[1]) / rs;
-            }
-
-            InsertAtFirst(smpos, smoothed);
-
-            
+            InsertAtFirst(smpos, REMA());
             InsertAtFirst(dir, smpos[0] - smpos[1]);
             InsertAtFirst(vel, dir[0].Length());
             InsertAtFirst(ddir, dir[0] - dir[1]);
             InsertAtFirst(accel, vel[0] - vel[1]);
             InsertAtFirst(jerk, accel[0] - accel[1]);
-            InsertAtFirst(pointaccel, ddir[0].Length());
             InsertAtFirst(pressure, report.Pressure);
 
+
+            pointaccel = ddir[0].Length();
 
             if (config!.Enabled)
                 ScaleValues(); 
@@ -379,6 +351,26 @@ namespace Saturn
             }
         }
 
+        Double2 REMA() {
+            Double2 smoothed = pos[0];
+            if ((savedFilter.reverseSmoothing < 1 && savedFilter.reverseSmoothing > 0) || (ExGate && config!.Enabled && config!.ReverseEmaHover < 1 && config!.ReverseEmaHover > 0)) {
+                double brs = reverseSmoothing;
+                if ((rawdir[0].Length() <= 1.42 && rawdir[1].Length() <= 1.42) || (tabletType == 6 && (pressure[0] == 0 && (rawdir[0].Length() < 6 || rawdir[1] == Double2.Zero || rawdir[2] == Double2.Zero || rawdir[3] == Double2.Zero)))) {
+                    brs = 1;
+                }
+
+                if (brs >= rs) rs = brs;
+                else {
+                    double tScale = 0.1 + 0.4 * Smoothstep(rawdir[0].Length(), 6, (pressure[0] > 0 ? 25 : 50));
+                    tScale *= 1.0 + Smoothstep(rawdir[0].Length() - rawdir[1].Length(), 0, (pressure[0] > 0 ? 10 : 20));
+                    rs = tScale * brs + (1.0 - tScale) * rs;
+                    if (rs < brs * (1.0 + tScale / (pressure[0] > 0.0 ? 5.0 : 10.0))) rs = brs;
+                }
+                smoothed = pos[1] + (pos[0] - pos[1]) / rs;
+            }
+            return smoothed;
+        }
+
         void ConsumeFilterPass(ITabletReport report) 
         {
             if (interp) {
@@ -389,24 +381,19 @@ namespace Saturn
                 latestReport = runningStopwatch.Elapsed + TimeSpan.FromSeconds(tOffset);  
             }
             else {
-                InsertAtFirst(svpos, smpos[0]);
-                InsertAtFirst(prpos, smpos[0]);
-                InsertAtFirst(svdir, dir[0]);
-                InsertAtFirst(prdir, dir[0]);
+                stpos = smpos[0];
             }
 
-            InsertAtFirst(stpos, svpos[0]);
-            InsertAtFirst(stdir, svdir[0]);
-
             if (pointFlag) {
-                startOutput = stpos[0];
+                filterStart = stpos;
                 FilterPass();
-
+                InsertAtFirst(intpos, filterOutput);
                 if (!interp) {
-                    filterOutput.X /= xModU;
+                    intpos[0].X /= xModU;
                 }
-
-                InsertAtFirst(fipos, filterOutput);
+            }
+            else {
+                InsertAtFirst(intpos, stpos);
             }
         }
 
@@ -414,21 +401,20 @@ namespace Saturn
         {
             Double2 predict = smpos[0];
 
-            if ((savedFilter.frameShift > 0 || (ExGate && config!.Enabled && config!.PredictionRatioHover > 0)) && kf != null && kf2 != null) {
+            if ((savedFilter.frameShift > 0 || (ExGate && config!.Enabled && config!.PredictionRatioHover > 0))) {
                 nonconf = ((emergency > 0) || (tabletType == 1 || tabletType == 2 || tabletType == 5) && ((pressure[0] == 0 && Double2.Distance(dir[0], dir[1] + ddir[1]) > (vel[0] / 8))));
              
-                if (emergency <= 1 || eflag) {
+                if ((emergency <= 1 || eflag) && kf.init) {
                     predict = kf.Update(smpos[0], this);
                 }
                 else {
-                    kf = new KalmanDouble2(smpos[0], this);
+                    kf.Initialize(smpos[0], this);
                 }
                 
                 InsertAtFirst(rk, predict);
 
                 if (!nonconf) {
                     double fac = Smoothstep(Double2.Distance(dir[0], dir[2]), 5.0, 0.0) * Smoothstep(vel[0], 0.0, 5.0);
-                    double faca = Smoothstep(Double2.Distance(dir[0], dir[2]), 5.0, 0.0) * Smoothstep(vel[0], 0.0, 5.0);
                     predict = Double2.Lerp(predict, Double2.Lerp(smpos[0], crpos[0], 0.45) + dir[0], fac);
 
                     if ((tabletType == 1 || tabletType == 2 || tabletType == 4 || tabletType == 6) && (Double2.Distance(dir[0], dir[2]) > Double2.Distance(dir[0], dir[1])) && (vel[0] > 20.0)) {
@@ -468,10 +454,10 @@ namespace Saturn
                 }
 
                 InsertAtFirst(crpos, predict);
-                InsertAtFirst(crdir, crpos[0] - crpos[1]);
+                crdir = crpos[0] - crpos[1];
 
                 if (!nonconf && tabletType == 1 || tabletType == 2 || tabletType == 4) {
-                    Double2 kv = kvf!.Update(dir[0], this);
+                    Double2 kv = kvf.Update(dir[0], this);
                         if (etick > 10) {
                             double kvv = Smoothstep(vel[0], 10 * areaScaleU, 30 * areaScaleU) * Smoothstep(Math.Abs(accel[0]) + Math.Abs(jerk[0]), 20.0 * areaScaleU, 5.0 * areaScaleU) * Smoothstep(Double2.Distance(dir[0], dir[5]), 5.0 * areaScaleU, 10.0 * areaScaleU) * Smoothstep((ddir[0] + ddir[1] + ddir[2] + ddir[3] + ddir[4] + ddir[5]).Length(), 30.0 * areaScaleU, 25.0 * areaScaleU);
                     
@@ -483,17 +469,17 @@ namespace Saturn
                                 else {
                                     kvw = kvv;
                                 }
-                                InsertAtFirst(c1d, Double2.Lerp(crdir[0], kv, kvw));
-                                InsertAtFirst(c1p, crpos[1] + c1d[0] * (1.0 + 0.01 * Smoothstep(jerk[0], 10, 50) - 0.01 * Smoothstep(jerk[0], -10, -50)));
+                                c1d = Double2.Lerp(crdir, kv, kvw);
+                                InsertAtFirst(c1p, crpos[1] + c1d * (1.0 + 0.01 * Smoothstep(jerk[0], 10, 50) - 0.01 * Smoothstep(jerk[0], -10, -50)));
                         }
                         else {
                             InsertAtFirst(c1p, crpos[0]);
-                            InsertAtFirst(c1d, crdir[0]);
+                            c1d = crdir;
                         }
                 }
                 else {
                     InsertAtFirst(c1p, crpos[0]);
-                    InsertAtFirst(c1d, crdir[0]);
+                    c1d = crdir;
                 }
 
                 if ((tabletType == 1 || tabletType == 2) && (pressure[0] == 0 && (vel[1] == 0))) {
@@ -504,20 +490,15 @@ namespace Saturn
 
                 predict += (smpos[0] - predict) * (1 - frameShiftU);
 
-                InsertAtFirst(prpos, predict);
-                InsertAtFirst(prdir, prpos[0] - prpos[1]);
-
-                InsertAtFirst(svpos, prpos[0]);
-                InsertAtFirst(svdir, prdir[0]);
+                stpos = predict;
             }
             else {
-                InsertAtFirst(svpos, smpos[0]);
-                InsertAtFirst(prpos, smpos[0]);
-                InsertAtFirst(svdir, dir[0]);
-                InsertAtFirst(prdir, dir[0]);
+                InsertAtFirst(crpos, smpos[0]);
+                crdir = dir[0];
+                stpos = smpos[0];
             }
 
-            if ((tabletType == 1 || tabletType == 6) && (Double2.Distance(prpos[0], smpos[0]) > 500.0 + dir[0].Length())) {
+            if ((tabletType == 1 || tabletType == 6) && (Double2.Distance(stpos, smpos[0]) > 500.0 + dir[0].Length())) {
                 emergency = 5;
             }
 
@@ -533,7 +514,6 @@ namespace Saturn
                 clampOutput += ringDir;
 
                 if (ringDirLength > 0) {
-                    
                     double xwa = XWA(expect, updateTime, wireAdjustFlag, reportMsAvg, expect, pointFlag);
 
                     double txwa = (ExGate && config!.Enabled && (timeScaleU != 1.0)) ? 
@@ -572,52 +552,65 @@ namespace Saturn
                 }
             }
             else {
+                clampHold = input;
                 clampOutput = input;
             }
         }
 
         void AEMA(Double2 input) 
         {
-            Double2 dist = input - smoothHold;
-            double distLength = dist.Length();
-            double mLength = DSFunction(distLength);
-            double wcon = WireWeightAdjust(stockWeightU * Default(mLength / distLength, 0), expect, updateTime, wireAdjustFlag);
+            if ((stockWeightU < 1.0) || (smoothDistU > 0.0)) {
+                Double2 dist = input - smoothHold;
+                double distLength = dist.Length();
+                double mLength = DSFunction(distLength);
+                double wcon = WireWeightAdjust(stockWeightU * Default(mLength / distLength, 0), expect, updateTime, wireAdjustFlag);
 
-            double twcon = (ExGate && config!.Enabled && (timeScaleU != 1.0)) ? 
-                UAdjust(wcon, timeScaleU) :
-                wcon;
+                double twcon = (ExGate && config!.Enabled && (timeScaleU != 1.0)) ? 
+                    UAdjust(wcon, timeScaleU) :
+                    wcon;
 
-            smoothHold += twcon * dist;
-            smoothOutput = smoothHold;
+                smoothHold += twcon * dist;
+                smoothOutput = smoothHold;
 
-            if (sepMultU > 0 && mLength > 0) {
-                if (!(wireFlag) || updateTime / expect > 0.99) 
-                    sepScale = Smoothstep(distLength, -0.01, smoothDistU * sepMultU);
-                
-                smoothOutput = Double2.Lerp(smoothHold, Double2.Lerp(smoothHold, input, stockWeightU), sepScale);
+                if (sepMultU > 0 && mLength > 0) {
+                    if (!(wireFlag) || updateTime / expect > 0.99) 
+                        sepScale = Smoothstep(distLength, -0.01, smoothDistU * sepMultU);
+                    
+                    smoothOutput = Double2.Lerp(smoothHold, Double2.Lerp(smoothHold, input, stockWeightU), sepScale);
+                }
+            }
+            else {
+                smoothHold = input;
+                smoothOutput = input;
             }
 
             if (aResponseU > 0) {
+                if (!filterPointStatsUpdated) {
+                    filterPointStatsUpdated = true;
+                    if (tabletType >= 0) {
+                        aFactor1 = Smoothstep(accel[0] + Math.Max(0, jerk[0]) / spro(vel[0] / 150.0), 10.0 * areaScaleU, 50.0 * areaScaleU);
+                        aFactor2 = Double2.DotOfNormalized(ddir[0], dir[0]);
+                        aFactor3 = Smoothstep(vel[0] + accel[0], 250.0 * areaScaleU, 500.0 * areaScaleU);
+                    }
+                    else {
+                        Double2 rd0 = (smpos[0] - smpos[3]);
+                        Double2 rd1 = (smpos[3] - smpos[6]);
+                        Double2 rd2 = (smpos[6] - smpos[9]);
+                        double ra0 = (rd0.Length() - rd1.Length());
+                        double ra1 = (rd1.Length() - rd2.Length());
+                        Double2 rdd0 = (rd0-rd1);
+                        Double2 rdd1 = (rd1-rd2);
+                        double rj0 = (rdd0.Length() - rdd1.Length());
+                        aFactor1 = Smoothstep(ra0 + Math.Max(0, rj0) / spro(rd0.Length() / 150.0), 10.0 * areaScaleU, 50.0 * areaScaleU);
+                        aFactor2 = Double2.DotOfNormalized(rdd0, rd0);
+                        aFactor3 = Smoothstep(rd0.Length() + ra0, 250.0 * areaScaleU, 500.0 * areaScaleU);
+                    }
+                }
+
                 double aDist = Double2.Distance(smoothOutput, adaptOutput);
-                double aFactor1 = 0.0;
-                double aFactor2 = 0.0;
-                double aFactor3 = 0.0;
-
-                if (tabletType >= 0) {
-                    aFactor1 = Smoothstep(accel[0] + Math.Max(0, jerk[0]) / spro(vel[0] / 150), 10 * areaScaleU, 50 * areaScaleU);
-                    aFactor2 = Double2.DotOfNormalized(ddir[0], dir[0]);
-                    aFactor3 = Smoothstep(vel[0] + accel[0], 250 * areaScaleU, 500 * areaScaleU);
-                }
-                else {
-                    aFactor1 = Smoothstep(accel[0] + accel[1] + (vel[0] - vel[5]) + Math.Max(0, (vel[0] - vel[5]) - (vel[5] - vel[10])) / spro((vel[0] + vel[1]) / 300), 5 * areaScaleU, 20 * areaScaleU);
-                    aFactor2 = Double2.DotOfNormalized(ddir[0], dir[0]);
-                    aFactor3 = Smoothstep(vel[0] + vel[1] + accel[0] + accel[1], 100 * areaScaleU, 250 * areaScaleU);
-                }
-                
-                double aMod = (1 + Math.Log10(Math.Max(aResponseU, 1))) * Math.Pow(Smoothstep(aDist, (accelResponseOuter * aResponseU * areaScaleU) + 100.0, (accelResponseInner * aResponseU * areaScale) - 1.0) * aFactor1, accelResponsePower + aResponseU) * (0.5 + 0.5 * aFactor2);
-                double weight = Math.Clamp(1 - aMod, 0, 1);
-                weight *= 1.0 - 0.75 * (Smoothstep(aDist, 1000 * areaScaleU, 5000 * areaScaleU) * aFactor3);
-
+                double aMod = (1.0 + Math.Log10(Math.Max(aResponseU, 1.0))) * Math.Pow(Smoothstep(aDist, (accelResponseOuter * aResponseU * areaScaleU) + 100.0, (accelResponseInner * aResponseU * areaScale) - 1.0) * aFactor1, accelResponsePower + aResponseU) * (0.5 + 0.5 * aFactor2);
+                double weight = Math.Clamp(1.0 - aMod, 0.0, 1.0);
+                weight *= 1.0 - 0.75 * (Smoothstep(aDist, 1000.0 * areaScaleU, 5000.0 * areaScaleU) * aFactor3);
 
                 double tweight = (ExGate && config!.Enabled && (timeScaleU != 1.0) && (weight != 1.0)) ?
                     UAdjust(weight, timeScaleU) :
@@ -641,7 +634,7 @@ namespace Saturn
 
         void FilterPass()
         {
-            RF(startOutput);
+            RF(filterStart);
             AEMA(clampOutput);
             filterOutput = adaptOutput;
         }
@@ -650,20 +643,17 @@ namespace Saturn
         {
             tick = 0;
             
-            if (kf == null) kf = new KalmanDouble2(p, this);
+            kf.Initialize(p, this);
             int hold = tabletType;
             tabletType = 67;
-            kvf = new KalmanDouble2(Double2.Zero, this);
+            kvf.Initialize(Double2.Zero, this);
             tabletType = hold;
-            pos = Enumerable.Repeat(p, HMAX).ToArray();
-            stpos = Enumerable.Repeat(p, HMAX).ToArray();
-            smpos = Enumerable.Repeat(p, HMAX).ToArray();
-            prpos = Enumerable.Repeat(p, HMAX).ToArray();
-            crpos = Enumerable.Repeat(p, HMAX).ToArray();
-            svpos = Enumerable.Repeat(p, HMAX).ToArray();
-            svdir = Enumerable.Repeat(p, HMAX).ToArray();
-            fipos = Enumerable.Repeat(p, HMAX).ToArray();
-            c1p = Enumerable.Repeat(p, HMAX).ToArray();
+            pos = Enumerable.Repeat(p, pos.Length).ToArray();
+            smpos = Enumerable.Repeat(p, smpos.Length).ToArray();
+            crpos = Enumerable.Repeat(p, crpos.Length).ToArray();
+            intpos = Enumerable.Repeat(p, intpos.Length).ToArray();
+            c1p = Enumerable.Repeat(p, c1p.Length).ToArray();
+            stpos = p;
             
             latestReport = runningStopwatch.Elapsed;
             tOffset = 0;
@@ -671,7 +661,7 @@ namespace Saturn
 
         void ERefresh() 
         {
-            startOutput = pos[0];
+            filterOutput = pos[0];
             clampHold = pos[0];
             clampOutput = pos[0];
             smoothHold = pos[0];
@@ -679,6 +669,7 @@ namespace Saturn
             adaptOutput = pos[0];
             filterOutput = pos[0];
             outputInternal = pos[0];
+            emPos = pos[0];
         }
 
         void SwapID(int i) {
@@ -845,44 +836,42 @@ namespace Saturn
         public bool consume;
         public string name;
         public int tabletType;
-        public Double2[] pos = new Double2[HMAX];
-        public Double2[] dir = new Double2[HMAX];
-        public Double2[] rawpos = new Double2[HMAX];
-        public Double2[] rawdir = new Double2[HMAX];
-        public Double2[] ddir = new Double2[HMAX];
-        public Double2[] fipos = new Double2[HMAX];
-        public Double2[] prpos = new Double2[HMAX];
-        public Double2[] crpos = new Double2[HMAX];
-        public Double2[] crdir = new Double2[HMAX];
-        public Double2[] c1d = new Double2[HMAX];
-        public Double2[] c1p = new Double2[HMAX];
-        public Double2[] rk = new Double2[HMAX];
+        public Double2[] smpos = new Double2[HMAX];
+        public Double2[] dir = new Double2[6];
+        public Double2[] ddir = new Double2[6];
+        public Double2[] rawdir = new Double2[5];
+        public Double2[] intpos = new Double2[3];
+        public Double2[] rawpos = new Double2[2];
+        public Double2[] pos = new Double2[2];
+        public Double2[] crpos = new Double2[2];
+        public Double2[] rk = new Double2[2];
+        public Double2[] c1p = new Double2[2];
+        public double[] vel = new double[2];
+        public double[] accel = new double[2];
+        public double[] jerk = new double[2];
+        public bool filterPointStatsUpdated;
 
         public bool ExGate;
-        public Double2[] prdir = new Double2[HMAX];
-        public Double2[] stpos = new Double2[HMAX];
-        public Double2[] stdir = new Double2[HMAX];
-        public Double2[] smpos = new Double2[HMAX];
-        public Double2[] svpos = new Double2[HMAX];
-        public Double2[] svdir = new Double2[HMAX];
+        public Double2 prpos;
+        public Double2 stpos;
+        public Double2 crdir;
+        public Double2 c1d;
         public bool[]? auxButtons;
         public bool[] lastPenButtons = new bool[HMAX];
         public Double2 smoothHold, emPos;
-        public double[] vel = new double[HMAX];
-        public double[] accel = new double[HMAX];
-        public double[] jerk = new double[HMAX];
-        public double[] pointaccel = new double[HMAX];
-        public double[] cross = new double[HMAX]; 
+        
+        public double pointaccel;
+
+        public double aFactor1, aFactor2, aFactor3;
 
         public int clampLock;
 
-        public uint[] pressure = new uint[HMAX];
+        public uint[] pressure = new uint[2];
+        public Double2 filterStart;
         public Double2 startOutput, outputInternal;
         public Double2 lastOutputPos, dirOfOutput;
         public Double2 unconvertedOutput;
-        public double[] reportTime = new double[HMAX];
-        public double adjdWeight;
-        public double correctWeight;
+        public double reportTime;
         public bool init = false;
         public bool altTimeWarn;
         public int emergency;
@@ -892,12 +881,9 @@ namespace Saturn
         public double rs;
         public double lastTime;
         public double tOverride;
-        public double distLengthSignificance;
         public bool modLikely;
         public bool iflag;
-        public bool timeFloor;
         public double altTime;
-        public const double startCorrectWeight = 0.1;    
         public const double msStandard = 3.302466;
         public double expect => 1000 / Frequency;
         public long tick = 0;
@@ -908,10 +894,8 @@ namespace Saturn
         public HPETDeltaStopwatch updateStopwatch = new HPETDeltaStopwatch();
         public HPETDeltaStopwatch altTimingStopwatch = new HPETDeltaStopwatch();
         public HPETDeltaStopwatch rfStopwatch = new HPETDeltaStopwatch();
-        public KalmanDouble2? kf;
-        public KalmanDouble2? kvf;
-        public KalmanDouble2? kf2;
-        public KalmanDouble2? kvf2;
+        public KalmanDouble2 kf = new KalmanDouble2();
+        public KalmanDouble2 kvf = new KalmanDouble2();
         public TimeSpan latestReport = TimeSpan.Zero;
         public double rpsAvg = 200, tOffset;
         public double msAvg = 5;

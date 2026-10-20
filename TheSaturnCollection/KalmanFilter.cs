@@ -430,8 +430,8 @@ namespace Saturn
                     break;
                     case 67:
                         if (!filter.nonconf) {
-                            tx[2, 0] *= 1.0 + 0.05 + Smoothstep(filter.pointaccel[0], 5.0, 15.0);
-                            tx[1, 0] *= 1.0 + 0.15 + Smoothstep(filter.pointaccel[0], 5.0, 15.0);
+                            tx[2, 0] *= 1.0 + 0.05 + Smoothstep(filter.pointaccel, 5.0, 15.0);
+                            tx[1, 0] *= 1.0 + 0.15 + Smoothstep(filter.pointaccel, 5.0, 15.0);
                         }
                     break;
                     default:
@@ -786,33 +786,38 @@ namespace Saturn
 
     public class KalmanDouble2
     {
-        public KalmanFilter xFilter;
-        public KalmanFilter yFilter;
+        public KalmanFilter? xFilter;
+        public KalmanFilter? yFilter;
+        public bool init;
 
-        public KalmanDouble2(Double2 initialPosition, MultifilterCore filter)
+        public KalmanDouble2() {
+            init = false;
+        }
+
+        public void Initialize(Double2 initialPosition, MultifilterCore filter) 
         {
             xFilter = new KalmanFilter(initialPosition.X, filter, 0);
             yFilter = new KalmanFilter(initialPosition.Y, filter, 1);
+            init = true;
         }
 
         public Double2 Update(Double2 measuredPosition, MultifilterCore filter)
         {
-            double xState = xFilter.Update(measuredPosition.X, filter);
-            double yState = yFilter.Update(measuredPosition.Y, filter);
-            return new Double2(xState, yState);
+            if (init) {
+                double xState = xFilter!.Update(measuredPosition.X, filter);
+                double yState = yFilter!.Update(measuredPosition.Y, filter);
+                return new Double2(xState, yState);
+            }
+            else {
+                Initialize(measuredPosition, filter);
+                return measuredPosition;
+            }
         }
-
-     /*   public Double2 Update2(Double2 measuredPosition, MultifilterCore filter)
-        {
-            double xState = xFilter.Update2(measuredPosition.X, filter);
-            double yState = yFilter.Update2(measuredPosition.Y, filter);
-            return new Double2(xState, yState);
-        }*/
 
         public void SwapID(int type)
         {
-            xFilter.tuneID = type;
-            yFilter.tuneID = type;
+            xFilter!.tuneID = type;
+            yFilter!.tuneID = type;
         }
     }
 
