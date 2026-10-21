@@ -6,16 +6,11 @@ Formatting may be non-final.
 
 ### Most Recent Update
 
-1.1.0 - Releases page will have update notes.
+1.1.0.2 - Releases page will have update notes.
 
 # Important
 
-Recent developments have rendered a lot of what used to be in this README as well as prediction itself mostly obsolete. The README will see more changes as things solidify.
-
-#### Stock PTK-470 Prediction Comparison (green = tablet report, yellow = temporal resampler, blue = the saturn collection)
-The top right report is the start of the sample.
-
-![](sampleprediction.png)
+Recent developments have rendered a lot of what used to be in this README mostly obsolete. The README will see more changes as things solidify.
 
 # High Report Rate Noise Compensation
 
