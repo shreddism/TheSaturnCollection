@@ -209,15 +209,17 @@ namespace Saturn
                     OnEmit();
                     return;
                 }
-                filter.HandleConsume(report);
 
-                if (filter.wireFlag) {
-                    UpdateState();
-                }
+                filter.HandleConsume(report);
 
                 if (!interp) {
                     report.Position = filter.intpos[0].AsVector2();
                     OnEmit();
+                    return;
+                }
+
+                if (filter.wireFlag) {
+                    UpdateState();
                 }
             }
             else {

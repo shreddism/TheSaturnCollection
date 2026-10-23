@@ -35,7 +35,7 @@ namespace Saturn
         private Matrix H;
         private Matrix Ht;
 
-        public int tuneID;
+        public int tuneID = 0;
 
         public KalmanFilter(double initialPosition, MultifilterCore filter, int axis)
         {

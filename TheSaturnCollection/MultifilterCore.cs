@@ -329,7 +329,6 @@ namespace Saturn
             InsertAtFirst(jerk, accel[0] - accel[1]);
             InsertAtFirst(pressure, report.Pressure);
 
-
             pointaccel = ddir[0].Length();
 
             if (config!.Enabled)
@@ -504,6 +503,13 @@ namespace Saturn
 
         }
 
+        void FilterPass()
+        {
+            RF(filterStart);
+            AEMA(clampOutput);
+            filterOutput = adaptOutput;
+        }
+
         void RF(Double2 input) 
         {
             if (rInnerU > 0) {
@@ -565,8 +571,8 @@ namespace Saturn
                 double mLength = DSFunction(distLength);
                 double wcon = WireWeightAdjust(stockWeightU * Default(mLength / distLength, 0), expect, updateTime, wireAdjustFlag);
 
-                double twcon = (ExGate && config!.Enabled && (timeScaleU != 1.0)) ? 
-                    UAdjust(wcon, timeScaleU) :
+                double twcon = (ExGate && config!.Enabled && (timeScaleU * distanceSmoothingTimeScaleU != 1.0)) ? 
+                    UAdjust(wcon, timeScaleU * distanceSmoothingTimeScaleU) :
                     wcon;
 
                 smoothHold += twcon * dist;
@@ -593,11 +599,10 @@ namespace Saturn
                         aFactor3 = Smoothstep(vel[0] + accel[0], 250.0 * areaScaleU, 500.0 * areaScaleU);
                     }
                     else {
-                        Double2 rd0 = (smpos[0] - smpos[3]);
-                        Double2 rd1 = (smpos[3] - smpos[6]);
-                        Double2 rd2 = (smpos[6] - smpos[9]);
+                        Double2 rd0 = (smpos[0] - smpos[5]);
+                        Double2 rd1 = (smpos[5] - smpos[10]);
+                        Double2 rd2 = (smpos[10] - smpos[15]);
                         double ra0 = (rd0.Length() - rd1.Length());
-                        double ra1 = (rd1.Length() - rd2.Length());
                         Double2 rdd0 = (rd0-rd1);
                         Double2 rdd1 = (rd1-rd2);
                         double rj0 = (rdd0.Length() - rdd1.Length());
@@ -612,8 +617,8 @@ namespace Saturn
                 double weight = Math.Clamp(1.0 - aMod, 0.0, 1.0);
                 weight *= 1.0 - 0.75 * (Smoothstep(aDist, 1000.0 * areaScaleU, 5000.0 * areaScaleU) * aFactor3);
 
-                double tweight = (ExGate && config!.Enabled && (timeScaleU != 1.0) && (weight != 1.0)) ?
-                    UAdjust(weight, timeScaleU) :
+                double tweight = (ExGate && config!.Enabled && (timeScaleU * accelResponseTimeScaleU != 1.0) && (weight != 1.0)) ?
+                    UAdjust(weight, timeScaleU * accelResponseTimeScaleU) :
                     weight; 
 
                 adaptOutput = Double2.Lerp(adaptOutput, smoothOutput, WireWeightAdjust(tweight, expect, updateTime, wireAdjustFlag));
@@ -630,13 +635,6 @@ namespace Saturn
                 return (dist - ((distanceSmoothingPower - 1) / distanceSmoothingPower) * smoothDistU);
 
             return (Math.Pow(dist, distanceSmoothingPower) / (distanceSmoothingPower * Math.Pow(smoothDistU, distanceSmoothingPower - 1)));
-        }
-
-        void FilterPass()
-        {
-            RF(filterStart);
-            AEMA(clampOutput);
-            filterOutput = adaptOutput;
         }
 
         void ResetValues(Double2 p) 
@@ -674,9 +672,7 @@ namespace Saturn
 
         void SwapID(int i) {
             tabletType = i;
-            if (kf != null) {
-                kf.SwapID(i);
-            }
+            kf.SwapID(i);
         }
 
         public void IDTablet(string name, ref int tabletType) {
@@ -814,6 +810,7 @@ namespace Saturn
             accelResponsePower = config!.AccelResponsePower;
             accelResponseInner = config!.AccelResponseBaseInnerDistanceThreshold;
             accelResponseOuter = config!.AccelResponseBaseOuterDistanceThreshold;
+            accelResponseTimeScale = config!.AccelResponseTimeScale;
         }
 
         public void ClampValues() {
