@@ -22,7 +22,7 @@ namespace Saturn
 
         [Property("Noise Amount (Warning: Hover Over the Textbox and Read This Tooltip)"), DefaultPropertyValue(5), ToolTip
         (
-            "This probably should be the first that your input passes through, unless you know what you are doing. However, this may not be the case.\n" +
+            "This probably should be the first filter that your input passes through, unless you know what you are doing. However, this may not be the case.\n" +
             "To make sure, save your OTD settings as a file, edit the file so that this filter is at the top, then load the settings file and save.\n\n" +
 
             "This filter is primarily designed for high report-rate tablets which could use a little noise filtering.\n" +

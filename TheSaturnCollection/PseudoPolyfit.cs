@@ -88,7 +88,7 @@ namespace Saturn
 
                 if (dynThreshold > 0.0) {
                     if (simplev[3].Length() < dynThreshold && simplea[3].Length() < dynThreshold * 8.0 && simplej[3].Length() < dynThreshold * 16.0) {
-                        sampleFloor = Math.Max(1, Math.Min(samples, sampleFloor) - (samples / 4));
+                        sampleFloor = Math.Max(1, Math.Min(samples, sampleFloor) - 4);
                     }
                     else sampleFloor++;
 
@@ -102,16 +102,48 @@ namespace Saturn
 
                 bool proper = false;
 
+                bool cycle = false;
+
+                bool fx = false;
+                bool fy = false;
                 while (!proper) {
                     tx = FitAtZero(weights![useDerivativesX][useSamples], ax!);
                     ty = FitAtZero(weights![useDerivativesY][useSamples], ay!);
-                    output = new Double2(tx, ty);
-                    bool fx = ((dynThreshold == 0.0) || Math.Abs(tx - cpos.X) < dynThreshold * 1.5);
-                    bool fy = ((dynThreshold == 0.0) || Math.Abs(ty - cpos.Y) < dynThreshold * 1.5);
+                    double dx = Math.Abs(tx - cpos.X);
+                    double dy = Math.Abs(ty - cpos.Y);
+
+                    fx = ((fx) || (dynThreshold == 0.0) || dx < dynThreshold * 1.5);
+                    fy = ((fy) || (dynThreshold == 0.0) || dy < dynThreshold * 1.5);
+
+                    if (cycle) {
+                        if (dx > cdx) {
+                            tx = cx;
+                        }
+                        else {
+                            cdx = dx;
+                        }
+
+                        if (dy > cdy) {
+                            ty = cy;
+                        }
+                        else {
+                            cdy = dy;
+                        }
+                    }
+                    else {
+                        cdx = dx;
+                        cdy = dy;
+                    }
+
+                    cx = tx;
+                    cy = ty;
 
                     if (!fx) { 
                         if (useDerivativesX < derivatives + 2) {
                             useDerivativesX++;
+                            /*Console.WriteLine("x");
+                            Console.WriteLine(useDerivativesX);
+                            Console.WriteLine(useDerivativesY);*/
                         }
                         else fx = true;
                     }
@@ -119,12 +151,22 @@ namespace Saturn
                     if (!fy) {
                         if (useDerivativesY < derivatives + 2) {
                             useDerivativesY++;
+                      /*      Console.WriteLine("y");
+                            Console.WriteLine(useDerivativesX);
+                            Console.WriteLine(useDerivativesY);*/
                         }
                         else fy = true;
                     }
 
+                    cycle = true;
+
                     proper = fx & fy;
                 }
+
+                output = new Double2(tx, ty);
+
+
+              //  output = Double2.Lerp(output, cpos, 0.5);
     
                 lp = cpos;
                 lo = output;
@@ -140,10 +182,10 @@ namespace Saturn
             if (v < dynThreshold * 7.5) {
                 if (a < dynThreshold * 5.0 && j < dynThreshold * 5.0) {
                     if (simplev[7].Length() < dynThreshold * 3.0 && simplea[7].Length() < dynThreshold * 5.0) {
-                        floor = Math.Min(derivatives - 4, floor + 1);
+                        floor = Math.Min(derivatives - 3, floor + 1);
                     }
                     else {
-                        floor = Math.Min(Math.Max(2, derivatives - 3), floor + 1);
+                        floor = Math.Min(Math.Max(2, derivatives - 2), floor + 1);
                     }
                 }
                 else if (a < dynThreshold * 4.0 && j < dynThreshold * 4.0) {
@@ -157,7 +199,7 @@ namespace Saturn
             else floor = Math.Min(derivatives, floor + 1);
 
             if ((sampleFloor > samples / 2) && (j < dynThreshold * 5.0) && (a < dynThreshold * 5.0)) {
-                floor = Math.Min(Math.Max(3,derivatives - 2), floor);
+                floor = Math.Min(Math.Max(3,derivatives - 1), floor);
             }
 
             if (simplej[7].Length() > dynThreshold * 16.0) {
@@ -171,6 +213,8 @@ namespace Saturn
 
         Double2 cpos, lp, output, lo;
         double tx, ty;
+        double cx, cy;
+        double cdx, cdy;
         double[]? ax, ay;
 
         int sampleFloor;
