@@ -43,7 +43,7 @@ namespace Saturn
         }
         public int _derivatives;
 
-        [Property("Dynamic Threshold"), DefaultPropertyValue(5), ToolTip
+        [Property("Dynamic Threshold"), DefaultPropertyValue(5.0), ToolTip
         (
             "Possible range: 0.0 - any, default 5\n\n" +
             "If this is set to 0, only the two above settings will apply.\n" +
@@ -66,7 +66,6 @@ namespace Saturn
             if (value is ITabletReport report) {
                 if (!calc) {
                     CalcStaticWeights();
-                    calc = true;
                 }
                 
                 if (tick < long.MaxValue) tick++;
@@ -81,93 +80,73 @@ namespace Saturn
                     return;
                 }
 
-                int useDerivativesX = derivatives;
-                int useDerivativesY = derivatives;
+                int dfloor = 1;
+                int dceiling = derivatives + 1;
 
-                int useSamples = samples;
-
-                if (dynThreshold > 0.0) {
-                    if (simplev[3].Length() < dynThreshold && simplea[3].Length() < dynThreshold * 8.0 && simplej[3].Length() < dynThreshold * 16.0) {
-                        sampleFloor = Math.Max(1, Math.Min(samples, sampleFloor) - 4);
-                    }
-                    else sampleFloor++;
-
-                    useSamples = Math.Max(1 + samples / 8, Math.Min(samples, sampleFloor));
-
-                    if (derivatives > 1) {
-                        useDerivativesX = DynamicDerivative(Math.Abs(simplev[7].X), Math.Abs(simplea[7].X), Math.Abs(simplej[7].X), ref derivativeFloorX);
-                        useDerivativesY = DynamicDerivative(Math.Abs(simplev[7].Y), Math.Abs(simplea[7].Y), Math.Abs(simplej[7].Y), ref derivativeFloorY);
-                    }
-                }
-
-                bool proper = false;
-
-                bool cycle = false;
-
-                bool fx = false;
-                bool fy = false;
-                while (!proper) {
-                    tx = FitAtZero(weights![useDerivativesX][useSamples], ax!);
-                    ty = FitAtZero(weights![useDerivativesY][useSamples], ay!);
-                    double dx = Math.Abs(tx - cpos.X);
-                    double dy = Math.Abs(ty - cpos.Y);
-
-                    fx = ((fx) || (dynThreshold == 0.0) || dx < dynThreshold * 1.5);
-                    fy = ((fy) || (dynThreshold == 0.0) || dy < dynThreshold * 1.5);
-
-                    if (cycle) {
-                        if (dx > cdx) {
-                            tx = cx;
-                        }
-                        else {
-                            cdx = dx;
-                        }
-
-                        if (dy > cdy) {
-                            ty = cy;
-                        }
-                        else {
-                            cdy = dy;
-                        }
+                if (dynThreshold != 0.0) {
+                    if (simplev[7].Length() < dynThreshold) {
+                        ldFloor = 8;
+                        hdFloor = Math.Min(samples / 2, derivatives);
+                        dceiling = 3;
                     }
                     else {
-                        cdx = dx;
-                        cdy = dy;
-                    }
-
-                    cx = tx;
-                    cy = ty;
-
-                    if (!fx) { 
-                        if (useDerivativesX < derivatives + 2) {
-                            useDerivativesX++;
-                            /*Console.WriteLine("x");
-                            Console.WriteLine(useDerivativesX);
-                            Console.WriteLine(useDerivativesY);*/
+                        ldFloor++;
+                        if (simplev[7].Length() < dynThreshold * 2.0 && simplea[7].Length() < dynThreshold * 2.5 && simplej[7].Length() < dynThreshold * 5.0) {
+                            hdFloor = samples / 2;
+                            dfloor = 2;
+                            dceiling = 4;
                         }
-                        else fx = true;
-                    }
-
-                    if (!fy) {
-                        if (useDerivativesY < derivatives + 2) {
-                            useDerivativesY++;
-                      /*      Console.WriteLine("y");
-                            Console.WriteLine(useDerivativesX);
-                            Console.WriteLine(useDerivativesY);*/
+                        else {
+                            hdFloor++;
+                            dfloor = 3;
                         }
-                        else fy = true;
                     }
-
-                    cycle = true;
-
-                    proper = fx & fy;
+                }
+                else {
+                    ldFloor = samples;
+                    hdFloor = samples;
+                    dfloor = derivatives;
                 }
 
-                output = new Double2(tx, ty);
 
+                int usedx = dfloor;
+                int usedy = dfloor;
 
-              //  output = Double2.Lerp(output, cpos, 0.5);
-    
+                for (int i = dfloor; i < dceiling; i++) {
+                    useSamples = Math.Min(samples, ((i > 3) ? hdFloor : ldFloor));
+                    tax[i] = FitAtZero(weights![i][useSamples], ax!);
+                    dx[i] = Math.Abs(tax[i] - ax[0]);
+
+                    if (i > dfloor) {
+                        if (dx[i - 1] > dx[i] + (dynThreshold * 0.1)) {
+                            usedx = i; 
+                        }
+                        else if (dx[i - 1] < dynThreshold * 0.25 && dx[i] < dynThreshold * 0.25){
+                            usedx = i - 1;
+                            break;
+                        }
+                    }
+                }
+
+                for (int i = dfloor; i < dceiling; i++) {
+                    useSamples = Math.Min(samples, ((i > 3) ? hdFloor : ldFloor));
+                    tay[i] = FitAtZero(weights![i][useSamples], ay!);
+                    dy[i] = Math.Abs(tay[i] - ay[0]);
+
+                    if (i > dfloor) {
+                        if (dy[i - 1] > dy[i] + (dynThreshold * 0.1)) {
+                            usedy = i; 
+                        }
+                        else if (dy[i - 1] < dynThreshold * 0.25 && dy[i] < dynThreshold * 0.25){
+                            usedy = i - 1;
+                            break;
+                        }
+                    }
+                }
+                    
+                output = new Double2(tax[usedx], tay[usedy]);
+                
+              
                 lp = cpos;
                 lo = output;
                 report.Position = output.AsVector2();
@@ -175,50 +154,19 @@ namespace Saturn
             Emit!.Invoke(value);
         }
 
-        int DynamicDerivative(double v, double a, double j, ref int floor) {
-            
-            floor = Math.Max(derivatives - 3, Math.Min(1 + (sampleFloor / (derivatives / 2)), floor));
-            
-            if (v < dynThreshold * 7.5) {
-                if (a < dynThreshold * 5.0 && j < dynThreshold * 5.0) {
-                    if (simplev[7].Length() < dynThreshold * 3.0 && simplea[7].Length() < dynThreshold * 5.0) {
-                        floor = Math.Min(derivatives - 3, floor + 1);
-                    }
-                    else {
-                        floor = Math.Min(Math.Max(2, derivatives - 2), floor + 1);
-                    }
-                }
-                else if (a < dynThreshold * 4.0 && j < dynThreshold * 4.0) {
-                    floor = Math.Min(derivatives - 1, floor + 1);
-                }
-                else {
-                    if (v > dynThreshold) floor = Math.Min(3, floor + 1);
-                    else floor = Math.Min(Math.Max(3,derivatives - 2), floor + 1);
-                }
-            }
-            else floor = Math.Min(derivatives, floor + 1);
-
-            if ((sampleFloor > samples / 2) && (j < dynThreshold * 5.0) && (a < dynThreshold * 5.0)) {
-                floor = Math.Min(Math.Max(3,derivatives - 1), floor);
-            }
-
-            if (simplej[7].Length() > dynThreshold * 16.0) {
-                floor = derivatives;
-            }
-
-            return Math.Max(Math.Max(1, derivatives - 4), Math.Min(derivatives, floor));
-        }
-
         bool calc = false;
 
         Double2 cpos, lp, output, lo;
-        double tx, ty;
-        double cx, cy;
-        double cdx, cdy;
+        double[]? dx, dy;
         double[]? ax, ay;
+        double[]? tax, tay;
+        
+        long tick;
 
-        int sampleFloor;
-        int derivativeFloorX, derivativeFloorY;
+        double[][][]? weights;
+
+        int useSamples;
+        int ldFloor, hdFloor;
 
         Double2[] pos = new Double2[33];
         const int force_table_history = 8;
@@ -237,26 +185,24 @@ namespace Saturn
             }
         }
 
-        long tick;
-
-        double[][][]? weights;
-        double[][][]? weights2;
-
         [OnDependencyLoad]
         public void CalcStaticWeights() {
-            int max = derivatives + 3;
-            weights = new double[max][][];
-            weights2 = new double[max][][];
-            for (int i = 1; i < max; i++) {
+            ldFloor = 1;
+            hdFloor = 1;
+            weights = new double[derivatives + 1][][];
+            for (int i = 1; i < derivatives + 1; i++) {
                 weights[i] = new double[samples + 1][];
-                weights2[i] = new double[samples + 1][];
                 for (int j = 1; j < samples + 1; j++) {
                     weights[i][j] = InterceptWeights(j, i);
-                    weights2[i][j] = InterceptWeights(j, i);
                 }
             }
             ax = new double[samples];
             ay = new double[samples];
+            dx = new double[derivatives + 1];
+            dy = new double[derivatives + 1];
+            tax = new double[derivatives + 1];
+            tay = new double[derivatives + 1];
+
             calc = true;
         }
 

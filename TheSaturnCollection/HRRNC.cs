@@ -20,7 +20,7 @@ namespace Saturn
 
         private HPETDeltaStopwatch reportStopwatch = new HPETDeltaStopwatch();
 
-        [Property("Noise Amount (Warning: Hover Over the Textbox and Read This Tooltip)"), DefaultPropertyValue(5), ToolTip
+        [Property("Noise Amount (Warning: Hover Over the Textbox and Read This Tooltip)"), DefaultPropertyValue(5.0), ToolTip
         (
             "This probably should be the first filter that your input passes through, unless you know what you are doing. However, this may not be the case.\n" +
             "To make sure, save your OTD settings as a file, edit the file so that this filter is at the top, then load the settings file and save.\n\n" +
@@ -117,7 +117,7 @@ namespace Saturn
         }
         public double _crossSeverity;
 
-        [Property("Accel/Velocity Multiplier"), DefaultPropertyValue(1), ToolTip
+        [Property("Accel/Velocity Multiplier"), DefaultPropertyValue(1.0), ToolTip
         (
             "Possible range: 0.0 - 1.0, default 1.0\n\n" +
 
@@ -130,7 +130,7 @@ namespace Saturn
         }
         public double _vMult;
 
-        [Property("Time Scale"), DefaultPropertyValue(1), ToolTip
+        [Property("Time Scale"), DefaultPropertyValue(1.0), ToolTip
         (
             "Possible range: 0.0 - any, default 1.0\n\n" +
 
