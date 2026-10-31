@@ -20,7 +20,7 @@ namespace Saturn
 
         private HPETDeltaStopwatch reportStopwatch = new HPETDeltaStopwatch();
 
-        [Property("Noise Amount (Warning: Hover Over the Textbox and Read This Tooltip)"), DefaultPropertyValue(5), ToolTip
+        [Property("Noise Amount (Warning: Hover Over the Textbox and Read This Tooltip)"), DefaultPropertyValue(5.0), ToolTip
         (
             "This probably should be the first filter that your input passes through, unless you know what you are doing. However, this may not be the case.\n" +
             "To make sure, save your OTD settings as a file, edit the file so that this filter is at the top, then load the settings file and save.\n\n" +
@@ -117,7 +117,7 @@ namespace Saturn
         }
         public double _crossSeverity;
 
-        [Property("Accel/Velocity Multiplier"), DefaultPropertyValue(1), ToolTip
+        [Property("Accel/Velocity Multiplier"), DefaultPropertyValue(1.0), ToolTip
         (
             "Possible range: 0.0 - 1.0, default 1.0\n\n" +
 
@@ -125,19 +125,19 @@ namespace Saturn
             "In any normal case, this should not go below 1."
         )]
         public double vMult { 
-            set => _vMult = Math.Clamp(value, 0, 1);
+            set => _vMult = Math.Clamp(value, 0.0, 1.0);
             get => _vMult;
         }
         public double _vMult;
 
-        [Property("Time Scale"), DefaultPropertyValue(1), ToolTip
+        [Property("Time Scale"), DefaultPropertyValue(1.0), ToolTip
         (
             "Possible range: 0.0 - any, default 1.0\n\n" +
 
             "There are baseline weights that expect a certain scale of time. Change this as you see fit."
         )]
         public double timeScale { 
-            set => _timeScale = Math.Max(value, 0);
+            set => _timeScale = Math.Max(value, 0.0);
             get => _timeScale;
         }
         public double _timeScale;
@@ -154,7 +154,7 @@ namespace Saturn
             HOVER_TOOLTIP
         )]
         public double dragDist { 
-            set => _dragDist = Math.Max(value, 0);
+            set => _dragDist = Math.Max(value, 0.0);
             get => _dragDist;
         }
         public double _dragDist;
@@ -164,7 +164,7 @@ namespace Saturn
             HOVER_TOOLTIP
         )]
         public double maxDist { 
-            set => _maxDist = Math.Max(value, 0);
+            set => _maxDist = Math.Max(value, 0.0);
             get => _maxDist;
         }
         public double _maxDist;
@@ -174,7 +174,7 @@ namespace Saturn
             HOVER_TOOLTIP
         )]
         public double maxHMult { 
-            set => _maxHMult = Math.Max(value, 1);
+            set => _maxHMult = Math.Max(value, 1.0);
             get => _maxHMult;
         }
         public double _maxHMult;
@@ -186,7 +186,7 @@ namespace Saturn
             "when pressure is above 0. This applies even when not adjusting for hover."
         )]
         public double dragConf { 
-            set => _dragConf = Math.Max(value, 1);
+            set => _dragConf = Math.Max(value, 1.0);
             get => _dragConf;
         }
         public double _dragConf;
@@ -339,6 +339,10 @@ namespace Saturn
                 tick = 0;
                 Log.Write("HRRNC", "A position value is not finite. Setting all filter outputs to raw position", LogLevel.Error, false, false);
             } 
+            
+            
+
+            lo = outputPos;
 
             report.Position = outputPos.AsVector2();     
             
@@ -369,6 +373,7 @@ namespace Saturn
             return output;
         }
 
+        Double2 lo;
         Double2 outputPos, lastPos, lastDirection, currAccel, usedAccel;
         Double2 currDirection, usedDir;
         Double2 positionProb, dirProb, accelProb;

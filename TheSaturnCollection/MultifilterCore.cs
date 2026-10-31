@@ -329,6 +329,8 @@ namespace Saturn
             InsertAtFirst(jerk, accel[0] - accel[1]);
             InsertAtFirst(pressure, report.Pressure);
 
+                PlotD("j", dir[0], true);
+
             pointaccel = ddir[0].Length();
 
             if (config!.Enabled)
