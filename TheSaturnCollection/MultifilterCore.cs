@@ -519,6 +519,10 @@ namespace Saturn
                 clampHold += ringDir;
                 clampOutput += ringDir;
 
+                Double2 recoveryPoint = (recoveryLimit == 1.0) ?
+                (input):
+                (Double2.Lerp(clampHold, input, recoveryLimit));
+
                 if (ringDirLength > 0) {
                     double xwa = XWA(expect, updateTime, wireAdjustFlag, reportMsAvg, expect, pointFlag);
 
@@ -811,6 +815,7 @@ namespace Saturn
             accelResponseInner = config!.AccelResponseBaseInnerDistanceThreshold;
             accelResponseOuter = config!.AccelResponseBaseOuterDistanceThreshold;
             accelResponseTimeScale = config!.AccelResponseTimeScale;
+            recoveryLimit = config!.InnerRadiusRecoveryLimit;
         }
 
         public void ClampValues() {
@@ -826,6 +831,7 @@ namespace Saturn
             timeScaleU = Math.Max(timeScaleU, 0.01);
             distanceSmoothingTimeScaleU = Math.Max(distanceSmoothingTimeScaleU, 0.01);
             accelResponseTimeScaleU = Math.Max(accelResponseTimeScaleU, 0.01);
+            recoveryLimit = Math.Clamp(recoveryLimit, 0.0, 1.0);
         }
         
         public Multifilter savedFilter;
@@ -918,6 +924,7 @@ namespace Saturn
         public double timeScale;
         public double distanceSmoothingTimeScale;
         public double accelResponseTimeScale;
+        public double recoveryLimit;
 
         public bool interp;
         public int wireCode;
