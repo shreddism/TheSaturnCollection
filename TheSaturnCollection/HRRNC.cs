@@ -9,7 +9,7 @@ using static Saturn.Utils;
 
 namespace Saturn
 {
-    [PluginName("Saturn - High Report Rate Noise Compensation")]
+    [PluginName("Saturn - Noise Compensation")]
     public class HRRNC : IPositionedPipelineElement<IDeviceReport>
     {
         public HRRNC() : base()
@@ -25,7 +25,8 @@ namespace Saturn
             "This probably should be the first filter that your input passes through, unless you know what you are doing. However, this may not be the case.\n" +
             "To make sure, save your OTD settings as a file, edit the file so that this filter is at the top, then load the settings file and save.\n\n" +
 
-            "This filter is primarily designed for high report-rate tablets which could use a little noise filtering.\n" +
+            "This filter was primarily designed for high report-rate tablets which could use a large amount of noise filtering.\n" +
+            "Smaller amounts of noise may see better results with the pseudo-polyfit filter.\n" +
             "It attempts to target report-to-report signal noise, even under motion.\n" +
 
             "Possible range: 0.0 - any, default 5.0\n\n" +

@@ -31,6 +31,12 @@ namespace Saturn
         public bool DisableTabletTweaks { get; set; } = false;
         public bool VecMatMul { get; set; } = false;
 
+        public double DistanceSmoothingPower { get; set; } = 2.0;
+        public double AccelResponsePower { get; set; } = 3.0;
+        public double AccelResponseBaseInnerDistanceThreshold { get; set; } = 500.0;
+        public double AccelResponseBaseOuterDistanceThreshold { get; set; } = 3500.0;
+        public double InnerRadiusRecoveryLimit { get; set; } = 1.0;
+
         public int ScaleStockEmaWeightByMovement { get; set; } = 0;                   
         public int ScaleInnerRadiusByMovement { get; set; } = 0;
         public int ScaleDistanceSmoothingByMovement { get; set; } = 0;
@@ -80,12 +86,6 @@ namespace Saturn
         public double EndTimeScaleMult { get; set; } = 1.0;
         public double EndDistanceSmoothingTimeScaleMult { get; set; } = 1.0;
         public double EndAccelResponseTimeScaleMult { get; set; } = 1.0;
-
-        public double DistanceSmoothingPower { get; set; } = 2.0;
-
-        public double AccelResponsePower { get; set; } = 3.0;
-        public double AccelResponseBaseInnerDistanceThreshold { get; set; } = 500.0;
-        public double AccelResponseBaseOuterDistanceThreshold { get; set; } = 3500.0;
 
         public bool Enabled { get; private set; } = false;
         public static bool vmm { get; private set; } = false;

@@ -12,7 +12,7 @@ using static Saturn.Utils;
 
 namespace Saturn
 {
-    [PluginName("Saturn - Pseudo-Polyfit Filter (Prototype)")]
+    [PluginName("Saturn - Pseudo-Polyfit Filter")]
     public class PseudoPolyfit : IPositionedPipelineElement<IDeviceReport>
     {
         public PseudoPolyfit() : base()
@@ -21,9 +21,17 @@ namespace Saturn
 
         public PipelinePosition Position => PipelinePosition.PreTransform;
 
+        const string POLYFIT_TOOLTIP = (
+            "Your tablet should have a very high report rate for this filter to function well.\n" +
+            "This filter makes a weighted sum of your last position values\n" +
+            "that is identical to the result of fitting a polynomial of a chosen degree onto them,\n" +
+            "given that your samples are evenly timed internally. If that is not the case, or if there are any major outliers,\n" +
+            "this filter may not work as well."
+        );
+        
         [Property("Samples"), DefaultPropertyValue(32), ToolTip
         (
-            "Possible range: 8 - 128, default 32"
+            "Possible range: 8 - 128, default 32\n\n" + POLYFIT_TOOLTIP
         )]
         public int samples
         {
@@ -34,7 +42,7 @@ namespace Saturn
 
         [Property("Derivatives"), DefaultPropertyValue(5), ToolTip
         (
-            "Possible range: 1 - 16, default 5"
+            "Possible range: 1 - 16, default 5\n\n" + POLYFIT_TOOLTIP
         )]
         public int derivatives
         {
@@ -56,24 +64,23 @@ namespace Saturn
         }
         public double _dynThreshold;
 
-        [Property("Fulcrum"), DefaultPropertyValue(0), ToolTip
+        [BooleanProperty("Average Many Fits", ""), DefaultPropertyValue(true), ToolTip
         (
-            ""
+            "This *should* improve the filter's performance under noise and extreme movements.\n\n" +
+            "If you encounter any weirdness, check this out first."
         )]
-        public int fulcrum
-        {
-            set => _fulcrum = Math.Clamp(value, 0, 127);
-            get => _fulcrum;
-        }
-        public int _fulcrum;
+        public bool fitAverage { set; get; }
     
         public event Action<IDeviceReport>? Emit;
 
         public HPETDeltaStopwatch reportStopwatch = new HPETDeltaStopwatch();
+        public HPETDeltaStopwatch perf = new HPETDeltaStopwatch();
 
         public void Consume(IDeviceReport value)
         {
             if (value is ITabletReport report) {
+                perf.Restart();
+                
                 if (!calc) {
                     CalcStaticWeights();
                     calc = true;
@@ -87,19 +94,11 @@ namespace Saturn
 
                 InsertAtFirst(pos, cpos);
                 
-                double angle = 0;
-
-                if (fulcrum > 0) {
-                    angle = (pos[0] - pos[fulcrum]).Angle();
-                    for (int i = 0; i < samples + 1; i++) {
-                        adjpoint[i] = Double2.Rotate(pos[i] - pos[fulcrum], -angle);
-                        ax[i] = adjpoint[i].X;
-                        ay[i] = adjpoint[i].Y;
-                    }
-                }
-                else {
-                    InsertAtFirst(ax, cpos.X);
-                    InsertAtFirst(ay, cpos.Y);
+                double angle = (pos[0] - pos[fulcrum]).Angle();
+                for (int i = 0; i < adjpoint.Length; i++) {
+                    adjpoint[i] = Double2.Rotate(pos[i] - pos[fulcrum], -angle);
+                    ax[i] = adjpoint[i].X;
+                    ay[i] = adjpoint[i].Y;
                 }
 
                 UpdateTable();
@@ -111,14 +110,15 @@ namespace Saturn
 
                 int useDerivativesX = derivatives;
                 int useDerivativesY = derivatives;
-
                 int useSamples = samples;
 
                 if (dynThreshold > 0.0) {
                     if (simplev[3].Length() < dynThreshold && simplea[3].Length() < dynThreshold * 8.0 && simplej[3].Length() < dynThreshold * 16.0) {
-                        sampleFloor = Math.Max(1, Math.Min(samples, sampleFloor) - 4);
+                        sampleFloor = Math.Max(1, Math.Min(samples, sampleFloor) - (samples / 4));
                     }
                     else sampleFloor++;
+
+                    useSamples = Math.Max(samples / 2, Math.Min(samples, sampleFloor));
 
                     if (derivatives > 1) {
                         useDerivativesX = DynamicDerivative(Math.Abs(simplev[7].X), Math.Abs(simplea[7].X), Math.Abs(simplej[7].X), ref derivativeFloorX);
@@ -126,22 +126,90 @@ namespace Saturn
                     }
                 }
 
+                if (dynThreshold != 0.0 && simplev[0].Length() < dynThreshold * 1.0 + 5.0 && simplej[7].Length() > dynThreshold * 4.0 + 20.0) useDerivativesX = Math.Min(derivatives + 1, useDerivativesX + 1);
+
+                if (dynThreshold != 0.0 && simplej[7].Length() > dynThreshold * 2.0 + 120.0 && simplev[7].Length() > dynThreshold + 100.0) {
+                    useSamples = Math.Min(useSamples, samples / 2);
+                }
+
+                useSamples = Math.Max(Math.Max(useDerivativesX, useDerivativesY) + 1, useSamples);
+                
                 bool proper = false;
                 bool fx = (dynThreshold == 0.0);
                 bool fy = (dynThreshold == 0.0);
+                double tx = 0;
+                double ty = 0;
+
                 while (!proper) {
-                    tx = FitAtZero(weights![useDerivativesX][useSamples], ax!);
-                    ty = FitAtZero(weights![useDerivativesY][useSamples], ay!);
+                    if (fitAverage && derivatives > samples) {
+                        int dxrStart = useDerivativesX - 1;
+                        int dyrStart = useDerivativesY - 1;
+                        int dxrEnd = useDerivativesX;
+                        int dyrEnd = useDerivativesY;
+                        int srStart = useSamples - 3;
+                        int srEnd = useSamples;
+
+                        if ((dynThreshold == 0.0) && (simplej[7].Length() > dynThreshold * 2.0 + 20.0)) {
+                            dxrStart++;
+                            dyrStart++;
+                        }
+
+                        if ((dynThreshold == 0.0) && (simplej[7].Length() > dynThreshold * 4.0 + 20.0 || simplea[7].Length() > dynThreshold * 4.0 + 20.0)) {
+                            dxrEnd++;
+                            dyrEnd++;
+                        }
+
+                        dxrStart = Math.Max(dxrStart, 1);
+                        dyrStart = Math.Max(dyrStart, 1);
+                        dxrEnd = Math.Max(dxrStart, Math.Min(derivatives, dxrEnd));
+                        dyrEnd = Math.Max(dyrStart, Math.Min(derivatives, dyrEnd));
+                        srStart = Math.Max(1, srStart);
+
+                        double[] fitsx = new double[(dxrEnd - dxrStart) + 1];
+                        double[] fitsy = new double[(dyrEnd - dyrStart) + 1];
+
+                        tx = 0.0;
+                        ty = 0.0;
+
+                        for (int d = dxrStart; d < dxrEnd + 1; d++) {
+                            int sampleshift = Math.Min(0, ((srStart - 1) * (d - dxrEnd)) / derivatives);
+                            if (srStart + sampleshift < 1) sampleshift = -(srStart - 1);
+                            for (int s = srStart; s < srEnd + 1; s++) {
+                                fitsx[d - dxrStart] += FitAtZero(weights![d][s + sampleshift], ax!);
+                            }
+                            fitsx[d - dxrStart] /= (double)((srEnd - srStart) + 1);
+
+                            tx += fitsx[d - dxrStart];
+                        }
+                        tx /= (double)((dxrEnd - dxrStart) + 1);
+
+
+                        for (int d = dyrStart; d < dyrEnd + 1; d++) {
+                            int sampleshift = Math.Min(0,((srStart - 1) * (d - dyrEnd)) / derivatives);
+                            if (srStart + sampleshift < 1) sampleshift = -(srStart - 1);
+                            for (int s = srStart; s < srEnd + 1; s++) {
+                                fitsy[d - dyrStart] += FitAtZero(weights![d][s + sampleshift], ay!);
+                            }
+                            fitsy[d - dyrStart] /= (double)((srEnd - srStart) + 1);
+
+                            ty += fitsy[d - dyrStart];
+                        }
+                        ty /= (double)((dyrEnd - dyrStart) + 1);
+                    }
+                    else {
+                        tx = FitAtZero(weights[useDerivativesX][useSamples], ax);
+                        ty = FitAtZero(weights[useDerivativesX][useSamples], ay);
+                    }
+
                     double dx = Math.Abs(tx - adjpoint[0].X);
                     double dy = Math.Abs(ty - adjpoint[0].Y);
 
-                    fx = ((fx) || dx < dynThreshold * 1.5);
-                    fy = ((fy) || dy < dynThreshold * 1.5);
+                    fx = ((fx) || dx < dynThreshold * 1.25);
+                    fy = ((fy) || dy < dynThreshold * 1.25);
 
                     if (!fx) {
                         if (useDerivativesX < derivatives + 1) {
                             useDerivativesX++;
-
                         }
                         else fx = true;
                     }
@@ -152,29 +220,15 @@ namespace Saturn
                         }
                         else fy = true;
                     }
-
+                    
                     proper = fx & fy;
-
                 }
 
                 output = new Double2(tx, ty);
 
-                if ((dynThreshold != 0.0) && simplea[7].Length() < dynThreshold * 4.0 && simplej[7].Length() < dynThreshold * 8.0 && (((output - lo) - odir).Length() > simplea[7].Length() * 2.0)) {
-              //      output = lo + Double2.Lerp(odir, output - lo, 0.5);
-                }
-
-                odir = output - lo;
-                lo = output;
-
-                Double2 real = output;
-
-                if (fulcrum > 0) real = Double2.Rotate(real, angle) + pos[fulcrum];
+                Double2 real = Double2.Rotate(output, angle) + pos[fulcrum];
 
                 report.Position = real.AsVector2();
-
-                lp = cpos;
-                lt = real;
-
             }
             Emit!.Invoke(value);
         }
@@ -182,17 +236,17 @@ namespace Saturn
         int DynamicDerivative(double v, double a, double j, ref int floor) {
             floor = Math.Max(derivatives - 3, Math.Min(1 + (sampleFloor / (derivatives / 2)), floor));
             
-            if (v < dynThreshold * 7.5) {
-                if (a < dynThreshold * 5.0 && j < dynThreshold * 5.0) {
+            if (v < dynThreshold * 4.0 + 20.0) {
+                if (a < dynThreshold * 2.0 && j < dynThreshold * 4.0) {
                     if (simplev[7].Length() < dynThreshold * 3.0 && simplea[7].Length() < dynThreshold * 5.0) {
-                        floor = Math.Min(derivatives - 3, floor + 1);
+                        floor = Math.Min(derivatives - 4, floor + 1);
                     }
                     else {
-                        floor = Math.Min(Math.Max(2, derivatives - 2), floor + 1);
+                        floor = Math.Min(Math.Max(2, derivatives - 3), floor + 1);
                     }
                 }
-                else if (a < dynThreshold * 4.0 && j < dynThreshold * 4.0) {
-                    floor = Math.Min(derivatives - 1, floor + 1);
+                else if (a < dynThreshold * 2.0 + 10.0 && j < dynThreshold * 4.0 + 20.0) {
+                    floor = Math.Min(derivatives - 3, floor + 1);
                 }
                 else {
                     if (v > dynThreshold) floor = Math.Min(3, floor + 1);
@@ -201,26 +255,19 @@ namespace Saturn
             }
             else floor = Math.Min(derivatives, floor + 1);
 
-            if ((sampleFloor > samples / 2) && (j < dynThreshold * 5.0) && (a < dynThreshold * 5.0)) {
-                floor = Math.Min(Math.Max(3,derivatives - 1), floor);
-            }
-
-            if (simplej[7].Length() > dynThreshold * 16.0) {
-                floor = derivatives;
+            if ((sampleFloor > samples / 2) && (j < dynThreshold * 2.0 + 20.0) && (a < dynThreshold + 10.0)) {
+                floor = Math.Min(Math.Max(3,derivatives - 3), floor);
             }
 
             return Math.Max(Math.Max(1, derivatives - 4), Math.Min(derivatives, floor));
         }
 
         bool calc = false;
-
-        Double2 lt;
-
-        Double2 cpos, lp, output, lo;
-        double tx, ty;
+        
+        Double2 cpos, output;
         double[]? ax, ay;
 
-        Double2 odir;
+        int fulcrum;
 
         int sampleFloor;
         int derivativeFloorX, derivativeFloorY;
@@ -244,22 +291,32 @@ namespace Saturn
 
         long tick;
 
-        double[][][]? weights;
+        static double[][][]? weights;
+        static int weightedDegree = 0;
+        static int weightedSamples = 0;
 
         [OnDependencyLoad]
         public void CalcStaticWeights() {
-            pos = new Double2[Math.Max(33, Math.Max(samples + 1, fulcrum + 1))];
-            int max = derivatives + 2;
-            weights = new double[max][][];
-            for (int i = 1; i < max; i++) {
-                weights[i] = new double[samples + 1][];
-                for (int j = 1; j < samples + 1; j++) {
-                    weights[i][j] = InterceptWeights(j, i);
+            derivatives = Math.Min(derivatives, samples / 2);
+            fulcrum = samples / 2;
+            pos = new Double2[Math.Max(33, samples + 1)];
+
+            if (samples != weightedSamples || derivatives != weightedDegree) {
+                int max = derivatives + 3;
+                weights = new double[max][][];
+                for (int i = Math.Max(derivatives - 4, 1); i < max; i++) {
+                    weights[i] = new double[samples + 1][];
+                    for (int j = 1; j < samples + 1; j++) {
+                        weights[i][j] = InterceptWeights(j, i);
+                    }
                 }
+                weightedSamples = samples;
+                weightedDegree = derivatives;
             }
-            adjpoint = new Double2[Math.Max(33, Math.Max(samples + 1, fulcrum + 1))];
-            ax = new double[Math.Max(33, Math.Max(samples + 1, fulcrum + 1))];
-            ay = new double[Math.Max(33, Math.Max(samples + 1, fulcrum + 1))];
+
+            adjpoint = new Double2[Math.Max(33, samples + 1)];
+            ax = new double[Math.Max(33, samples + 1)];
+            ay = new double[Math.Max(33, samples + 1)];
             calc = true;
         }
 
