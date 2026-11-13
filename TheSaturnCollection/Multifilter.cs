@@ -33,7 +33,7 @@ namespace Saturn
             set => _reverseSmoothing = Math.Clamp(value, 0.001, 1.0);
             get => _reverseSmoothing;
         }
-        public double _reverseSmoothing;
+        public double _reverseSmoothing = 1.0;
 
         [Property("Stock EMA Weight"), DefaultPropertyValue(1.0), ToolTip
         (
@@ -47,7 +47,7 @@ namespace Saturn
             set => _stockWeight = Math.Clamp(value, 0.001, 1.0);
             get => _stockWeight;
         }
-        public double _stockWeight;
+        public double _stockWeight = 1.0;
 
         [Property("Inner Radius"), DefaultPropertyValue(25.0), ToolTip
         (
@@ -61,7 +61,7 @@ namespace Saturn
             set => _rInner = Math.Max(value, 0.0);
             get => _rInner;
         }
-        public double _rInner;
+        public double _rInner = 25.0;
 
         [Property("Distance Smoothing"), DefaultPropertyValue(50.0), ToolTip
         (
@@ -75,7 +75,7 @@ namespace Saturn
             set => _smoothDist = Math.Max(value, 0.0);
             get => _smoothDist;
         }
-        public double _smoothDist;
+        public double _smoothDist = 50.0;
 
         [Property("Separated Threshold Mult"), DefaultPropertyValue(1.0), ToolTip
         (
@@ -89,7 +89,7 @@ namespace Saturn
             set => _sepMult = Math.Max(value, 0.5);
             get => _sepMult;
         }
-        public double _sepMult;
+        public double _sepMult = 0.5;
 
         [Property("Accel Response Aggressiveness"), DefaultPropertyValue(0.0), ToolTip
         (
@@ -107,7 +107,7 @@ namespace Saturn
             set => _aResponse = Math.Max(value, 0.0);
             get => _aResponse;
         }
-        public double _aResponse;
+        public double _aResponse = 0.0;
 
         [Property("Area Scale"), DefaultPropertyValue(0.5), ToolTip
         (
@@ -121,7 +121,7 @@ namespace Saturn
             set => _areaScale = Math.Clamp(value, 0.01, 5.0);
             get => _areaScale;
         }
-        public double _areaScale;
+        public double _areaScale = 0.5;
 
         [Property("X Modifier"), DefaultPropertyValue(1.0), ToolTip
         (
@@ -137,21 +137,21 @@ namespace Saturn
             set => _xMod = Math.Clamp(value, 0.01, 100.0);
             get => _xMod;
         }
-        public double _xMod;
+        public double _xMod = 1.0;
 
         [BooleanProperty("Read Config File", ""), DefaultPropertyValue(false), ToolTip
         (
             "A config file can be created which can pass extra settings to the filter.\n" +
             "The filter attempts to read the file for your specific tablet if enabled."
         )]
-        public bool ExGate { set; get; }
+        public bool ExGate { set; get; } = false;
 
         [BooleanProperty("Interpolation", ""), DefaultPropertyValue(false), ToolTip
         (
             "Enables interpolation.\n" +
             "If this is disabled, no settings below this will have an effect."
         )]
-        public bool interp { set; get; }
+        public bool interp { set; get; } = false;
 
         [Property("Wire - Filter Mode"), PropertyValidated(nameof(wireModes)), DefaultPropertyValue("Wire - Interp"), ToolTip
         (
@@ -169,7 +169,7 @@ namespace Saturn
             "Wire - Point",
             "Wire - Interp"
         }; 
-        public string? _wireMode;
+        public string? _wireMode = "Wire - Interp";
 
         [Property("Prediction Ratio"), DefaultPropertyValue(0.0), ToolTip
         (
@@ -184,7 +184,7 @@ namespace Saturn
             set => _frameShift = Math.Clamp(value, 0.0, 1.0);
             get => _frameShift;
         }
-        public double _frameShift;
+        public double _frameShift = 0.0;
 
         protected override void ConsumeState()
         {

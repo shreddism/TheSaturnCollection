@@ -38,20 +38,20 @@ namespace Saturn
             set => _noiseAmount = Math.Max(value, 0);
             get => _noiseAmount;
         }
-        public double _noiseAmount;
+        public double _noiseAmount = 5.0;
 
         [Property("Position Slack"), DefaultPropertyValue(1.25), ToolTip
         (
             "Possible range: 1.0 - any, default 1.25\n\n" +
 
-            "Position correction has to have a little extra slack for the function of the filter.\n" +
+            "Position correction should have a little extra slack for the function of the filter.\n" +
             "This value multiplies the confidence thresholds for position."
         )]
         public double posSlack { 
             set => _posSlack = Math.Max(value, 1);
             get => _posSlack;
         }
-        public double _posSlack;
+        public double _posSlack = 1.25;
 
         [Property("Correction Strength"), DefaultPropertyValue(0.5), ToolTip
         (
@@ -64,7 +64,7 @@ namespace Saturn
             set => _cStrength = Math.Clamp(value, 0, 1);
             get => _cStrength;
         }
-        public double _cStrength;
+        public double _cStrength = 0.5;
 
         [BooleanProperty("Jerk Response Increase", ""), DefaultPropertyValue(true), ToolTip
         (
@@ -75,7 +75,7 @@ namespace Saturn
             set => _ajResponse = value;
             get => _ajResponse;
         }
-        public bool _ajResponse;
+        public bool _ajResponse = true;
 
         [BooleanProperty("Chained Correction", ""), DefaultPropertyValue(true), ToolTip
         (
@@ -86,7 +86,7 @@ namespace Saturn
             set => _cChain = value;
             get => _cChain;
         }
-        public bool _cChain;
+        public bool _cChain = true;
 
         [Property("Timing Variance Severity"), DefaultPropertyValue(0.0), ToolTip
         (
@@ -101,7 +101,7 @@ namespace Saturn
             set => _TimingSeverity = Math.Max(0.0, value);
             get => _TimingSeverity;
         }
-        public double _TimingSeverity;
+        public double _TimingSeverity = 0.0;
 
         [Property("Cross Pattern Severity"), DefaultPropertyValue(0.0), ToolTip
         (
@@ -116,7 +116,7 @@ namespace Saturn
             set => _crossSeverity = Math.Max(0.0, value);
             get => _crossSeverity;
         }
-        public double _crossSeverity;
+        public double _crossSeverity = 0.0;
 
         [Property("Accel/Velocity Multiplier"), DefaultPropertyValue(1.0), ToolTip
         (
@@ -129,7 +129,7 @@ namespace Saturn
             set => _vMult = Math.Clamp(value, 0.0, 1.0);
             get => _vMult;
         }
-        public double _vMult;
+        public double _vMult = 1.0;
 
         [Property("Time Scale"), DefaultPropertyValue(1.0), ToolTip
         (
@@ -141,7 +141,7 @@ namespace Saturn
             set => _timeScale = Math.Max(value, 0.0);
             get => _timeScale;
         }
-        public double _timeScale;
+        public double _timeScale = 1.0;
 
         public const string HOVER_TOOLTIP =
             "If the hover settings are non-default and non-equal, the noise amount value\n" +
@@ -158,7 +158,7 @@ namespace Saturn
             set => _dragDist = Math.Max(value, 0.0);
             get => _dragDist;
         }
-        public double _dragDist;
+        public double _dragDist = 0.0;
 
         [Property("Maximum Hover Distance"), DefaultPropertyValue(0.0), ToolTip
         (
@@ -168,7 +168,7 @@ namespace Saturn
             set => _maxDist = Math.Max(value, 0.0);
             get => _maxDist;
         }
-        public double _maxDist;
+        public double _maxDist = 0.0;
 
         [Property("Maximum Hover Multiplier"), DefaultPropertyValue(1.0), ToolTip
         (
@@ -178,7 +178,7 @@ namespace Saturn
             set => _maxHMult = Math.Max(value, 1.0);
             get => _maxHMult;
         }
-        public double _maxHMult;
+        public double _maxHMult = 1.0;
 
         [Property("Dragging Confidence"), DefaultPropertyValue(1.0), ToolTip
         (
@@ -190,7 +190,7 @@ namespace Saturn
             set => _dragConf = Math.Max(value, 1.0);
             get => _dragConf;
         }
-        public double _dragConf;
+        public double _dragConf = 1.0;
 
         public event Action<IDeviceReport>? Emit;
 
@@ -340,10 +340,6 @@ namespace Saturn
                 tick = 0;
                 Log.Write("HRRNC", "A position value is not finite. Setting all filter outputs to raw position", LogLevel.Error, false, false);
             } 
-            
-            
-
-            lo = outputPos;
 
             report.Position = outputPos.AsVector2();     
             
@@ -374,7 +370,6 @@ namespace Saturn
             return output;
         }
 
-        Double2 lo;
         Double2 outputPos, lastPos, lastDirection, currAccel, usedAccel;
         Double2 currDirection, usedDir;
         Double2 positionProb, dirProb, accelProb;

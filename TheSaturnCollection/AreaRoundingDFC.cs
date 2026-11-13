@@ -33,7 +33,7 @@ namespace Saturn
             set => _threshold = Math.Max(0.0, value);
             get => _threshold;
         }
-        public double _threshold;
+        public double _threshold = 720.0;
 
         [Property("Power"), DefaultPropertyValue(1.0), ToolTip(
             DFC_TOOLTIP +
@@ -50,7 +50,7 @@ namespace Saturn
             set => _dPower = Math.Max(0.0, value);
             get => _dPower;
         }
-        public double _dPower;
+        public double _dPower = 1.0;
 
         const string AXIS_TOOLTIP = 
             "Dividing the input on an axis by a value is different from multiplying the output by the inverse value.\n" +
@@ -62,7 +62,7 @@ namespace Saturn
             set => _xDiv = Math.Max(0.0, value);
             get => _xDiv;
         }
-        public double _xDiv;
+        public double _xDiv = 1.0;
 
         [Property("Vertical Input Divisor"), DefaultPropertyValue(1.0), ToolTip(AXIS_TOOLTIP)]
         public double yDiv
@@ -70,7 +70,7 @@ namespace Saturn
             set => _yDiv = Math.Max(0.0, value);
             get => _yDiv;
         }
-        public double _yDiv;
+        public double _yDiv = 1.0;
 
         [Property("Horizontal Output Multiplier"), DefaultPropertyValue(1.0), ToolTip(AXIS_TOOLTIP)]
         public double xMul
@@ -78,7 +78,7 @@ namespace Saturn
             set => _xMul = Math.Max(0.0, value);
             get => _xMul;
         }
-        public double _xMul;
+        public double _xMul = 1.0;
 
         [Property("Vertical Output Multiplier"), DefaultPropertyValue(1.0), ToolTip(AXIS_TOOLTIP)]
         public double yMul
@@ -86,7 +86,7 @@ namespace Saturn
             set => _yMul = Math.Max(0.0, value);
             get => _yMul;
         }
-        public double _yMul;
+        public double _yMul = 1.0;
 
         public override event Action<IDeviceReport>? Emit;
 

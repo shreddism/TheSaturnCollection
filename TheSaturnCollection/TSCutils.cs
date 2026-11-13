@@ -41,21 +41,8 @@ namespace Saturn
             arr[0] = element;
         }
 
-        public static Double2 AvgMinusExtremes(Double2[] arr, int start, int num) {
-            Double2 sum = Double2.Zero;
-            Double2 max = Double2.Zero;
-            Double2 min = Double2.Zero;
-            for (int i = start; i < start + num; i++) {
-                sum += arr[i];
-                if (max.Length() < arr[i].Length()) {
-                    max = arr[i];
-                }
-                else if (min.Length() > arr[i].Length()) {
-                    min = arr[i];
-                }
-            }
-
-            return ((sum - max - min) / ((double)num - 2.0));
+        public static Double2 FitV2(int d, int s, int e, double[][][][] weights, double[] fx, double[] fy) {
+            return new Double2(FitAtZero(weights[d][s][e], fx), FitAtZero(weights[d][s][e], fy));
         }
 
         public static void NonInsertAtFirst<T>(T[] arr)
@@ -83,6 +70,18 @@ namespace Saturn
             Double2 rp = Double2.Rotate(mp, ca);
             Double2 re = Double2.Rotate(me, ca);
             return rp - re;
+        }
+
+        public static double FitAtZero(double[] w, double[] s)
+        {
+            if (w[0] == 1.0) {
+                return s[0];
+            }
+
+            double sum = 0;
+            for (int i = 0; i < w.Length; i++)
+                sum += w[i] * s[i];
+            return sum;
         }
 
         public static void Identify(string name, ref int ID) 
@@ -162,7 +161,7 @@ namespace Saturn
             }
         }
 
-        public static void PlotD(string c, Double2 p, bool t) 
+        /*public static void PlotD(string c, Double2 p, bool t) 
         {
             Console.Write(c + "x");
             Console.WriteLine(p.X);
@@ -176,7 +175,7 @@ namespace Saturn
         
         public static void PointGraph(string c, Double2 p, long i) {
             Console.WriteLine(c + "_{" + i + "}=(" + p.X + "," + -p.Y + ")");
-        }
+        }*/
     }
 
     public struct Double2 
@@ -213,6 +212,8 @@ namespace Saturn
         public static double DotOfNormalized(Double2 a, Double2 b) => (a != Double2.Zero && b != Double2.Zero) ? Dot(a.Normalize(), b.Normalize()) : 0.0;
         public static double CrossOfNormalized(Double2 a, Double2 b) => (a != Double2.Zero && b != Double2.Zero) ? Cross(a.Normalize(), b.Normalize()) : 0.0;
 
+        public static Double2 Round(Double2 a, int b) => new Double2(Math.Round(a.X, (MidpointRounding)b), Math.Round(a.Y, (MidpointRounding)b));
+        
         public bool IsFinite() => double.IsFinite(X + Y);
 
         public double Angle() => Math.Atan2(Y, X);

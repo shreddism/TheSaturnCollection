@@ -36,6 +36,7 @@ namespace Saturn
         public double AccelResponseBaseInnerDistanceThreshold { get; set; } = 500.0;
         public double AccelResponseBaseOuterDistanceThreshold { get; set; } = 3500.0;
         public double InnerRadiusRecoveryLimit { get; set; } = 1.0;
+        public bool ShiftHold { get; set; } = false;
 
         public int ScaleStockEmaWeightByMovement { get; set; } = 0;                   
         public int ScaleInnerRadiusByMovement { get; set; } = 0;

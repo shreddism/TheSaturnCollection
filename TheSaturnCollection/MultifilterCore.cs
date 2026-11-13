@@ -28,16 +28,14 @@ namespace Saturn
             areaScale = m.areaScale;
             xMod = m.xMod;
             interp = m.interp;
-            tabletToggle = !(ExGate && config!.Enabled && config!.DisableTabletTweaks);
+            tabletToggle = !(ExGate && config.Enabled && config.DisableTabletTweaks);
             Frequency = m.Frequency;
-            name = m.Tablet!.Properties.Name;
+            name = m.Tablet.Properties.Name;
 
             if (tabletToggle)
                 IDTablet(name, ref tabletType);
 
             SetValues();
-
-            timeScale = config!.TimeScale;
 
             frameShiftU = frameShift;
             rInnerU = rInner;
@@ -82,8 +80,8 @@ namespace Saturn
 
         public void HandleConsume(ITabletReport report)
         {
-            if (ExGate && config!.Enabled) {
-                if (config!.HoverSettingsEnabled) {
+            if (ExGate && config.Enabled) {
+                if (config.HoverSettingsEnabled) {
                     if (report.Pressure == 0 && (pressure[0] > 0 || gtick == 0)) {
                         HoverSettings();
                     }
@@ -303,7 +301,6 @@ namespace Saturn
             report.Pressure = pressure[0];
 
             if (!(unconvertedOutput + startOutput + clampOutput + smoothOutput + adaptOutput + filterOutput + outputInternal).IsFinite()) {
-                ERefresh();
                 eflag = false;
                 emergency = 5;
                 ResetValues(pos[0]);
@@ -331,7 +328,7 @@ namespace Saturn
 
             pointaccel = ddir[0].Length();
 
-            if (config!.Enabled)
+            if (config.Enabled)
                 ScaleValues(); 
 
             if (interp) {
@@ -352,7 +349,7 @@ namespace Saturn
 
         Double2 REMA() {
             Double2 smoothed = pos[0];
-            if ((savedFilter.reverseSmoothing < 1 && savedFilter.reverseSmoothing > 0) || (ExGate && config!.Enabled && config!.ReverseEmaHover < 1 && config!.ReverseEmaHover > 0)) {
+            if ((savedFilter.reverseSmoothing < 1 && savedFilter.reverseSmoothing > 0) || (ExGate && config.Enabled && config.ReverseEmaHover < 1 && config.ReverseEmaHover > 0)) {
                 double brs = reverseSmoothing;
                 if ((rawdir[0].Length() <= 1.42 && rawdir[1].Length() <= 1.42) || (tabletType == 6 && (pressure[0] == 0 && (rawdir[0].Length() < 6 || rawdir[1] == Double2.Zero || rawdir[2] == Double2.Zero || rawdir[3] == Double2.Zero)))) {
                     brs = 1;
@@ -383,6 +380,7 @@ namespace Saturn
                 stpos = smpos[0];
             }
 
+
             if (pointFlag) {
                 filterStart = stpos;
                 FilterPass();
@@ -400,7 +398,7 @@ namespace Saturn
         {
             Double2 predict = smpos[0];
 
-            if ((savedFilter.frameShift > 0 || (ExGate && config!.Enabled && config!.PredictionRatioHover > 0))) {
+            if ((savedFilter.frameShift > 0 || (ExGate && config.Enabled && config.PredictionRatioHover > 0))) {
                 nonconf = ((emergency > 0) || (tabletType == 1 || tabletType == 2 || tabletType == 5) && ((pressure[0] == 0 && Double2.Distance(dir[0], dir[1] + ddir[1]) > (vel[0] / 8))));
              
                 if ((emergency <= 1 || eflag) && kf.init) {
@@ -513,11 +511,22 @@ namespace Saturn
         void RF(Double2 input) 
         {
             if (rInnerU > 0) {
-                Double2 dist = input - clampHold;
+                if (shiftHold) {
+                    Double2 shiftedDist = shiftedHold - clampHold;
+                    shiftedHold = clampHold + Math.Min(rInnerU, shiftedDist.Length()) * shiftedDist.Normalize();
+                }
+
+                Double2 dist = (shiftHold) ? 
+                    input - shiftedHold :
+                    input - clampHold;
+
                 double ringDirLength = Math.Max(0, dist.Length() - (rInnerU));
                 Double2 ringDir = ringDirLength * dist.Normalize();
                 clampHold += ringDir;
                 clampOutput += ringDir;
+
+                if (shiftHold) 
+                    shiftedHold += ringDir;
 
                 Double2 recoveryPoint = (recoveryLimit == 1.0) ?
                 (input):
@@ -526,13 +535,15 @@ namespace Saturn
                 if (ringDirLength > 0) {
                     double xwa = XWA(expect, updateTime, wireAdjustFlag, reportMsAvg, expect, pointFlag);
 
-                    double txwa = (ExGate && config!.Enabled && (timeScaleU != 1.0)) ? 
+                    double txwa = (ExGate && config.Enabled && (timeScaleU != 1.0)) ? 
                         xwa * timeScaleU :
                         xwa;
 
-                    clampOutput = Double2.Lerp(clampOutput, input, UAdjust(inversion(Smoothstep(ringDirLength, -0.01, rInnerU + 5.0), 1.75, 1.333), txwa));
+                    if (shiftHold) shiftedHold += (clampHold - shiftedHold).Normalize() * Math.Min((clampHold - shiftedHold).Length(), ringDirLength * 0.05);
 
-                    double newDistLength = Double2.Distance(input, clampOutput);
+                    clampOutput = Double2.Lerp(clampOutput, recoveryPoint, UAdjust(inversion(Smoothstep(ringDirLength, -0.01, rInnerU + 5.0), 1.75, 1.333), txwa));
+
+                    double newDistLength = Double2.Distance(recoveryPoint, clampOutput);
 
                     accumulatedRFMovementTime += rfStopwatch.Restart().TotalMilliseconds;
                     
@@ -542,23 +553,26 @@ namespace Saturn
 
                     if (clampLock == 0) {
                         if (newDistLength < 1.0 && accumulatedRFMovementTime > 20.0) {
-                            clampOutput = input;
+                            clampOutput = recoveryPoint;
                         }
                         else {
-                            clampOutput = Double2.Lerp(clampOutput, input, UAdjust((0.05 + 0.95 * Math.Pow(Step(newDistLength, 5.0, 0.5), 5.0)) * moveIndex * Math.Pow(Step(newDistLength, rInnerU * 0.5, 1.0), 10.0), txwa));
+                            clampOutput = Double2.Lerp(clampOutput, recoveryPoint, UAdjust((0.05 + 0.95 * Math.Pow(Step(newDistLength, 5.0, 0.5), 5.0)) * moveIndex * Math.Pow(Step(newDistLength, rInnerU * 0.5, 1.0), 10.0), txwa));
                         }
-                        if (clampOutput == input) {
+                        if (clampOutput == recoveryPoint) {
                             clampLock = 2;
                         }
                     }
                     else {
-                        clampOutput = input;
+                        clampOutput = recoveryPoint;
                     }
                 }
                 else {
                     clampLock = Math.Max(clampLock - 1, 0);
                     accumulatedRFMovementTime -= 5.0 * rfStopwatch.Restart().TotalMilliseconds;
                     accumulatedRFMovementTime = Math.Max(accumulatedRFMovementTime, 0.0);
+
+                    if (shiftHold)
+                        shiftedHold = Double2.Lerp(shiftedHold, input, 0.05);
                 }
             }
             else {
@@ -575,9 +589,10 @@ namespace Saturn
                 double mLength = DSFunction(distLength);
                 double wcon = WireWeightAdjust(stockWeightU * Default(mLength / distLength, 0), expect, updateTime, wireAdjustFlag);
 
-                double twcon = (ExGate && config!.Enabled && (timeScaleU * distanceSmoothingTimeScaleU != 1.0)) ? 
+                double twcon = (ExGate && config.Enabled && (timeScaleU * distanceSmoothingTimeScaleU != 1.0)) ? 
                     UAdjust(wcon, timeScaleU * distanceSmoothingTimeScaleU) :
                     wcon;
+
 
                 smoothHold += twcon * dist;
                 smoothOutput = smoothHold;
@@ -621,7 +636,7 @@ namespace Saturn
                 double weight = Math.Clamp(1.0 - aMod, 0.0, 1.0);
                 weight *= 1.0 - 0.75 * (Smoothstep(aDist, 1000.0 * areaScaleU, 5000.0 * areaScaleU) * aFactor3);
 
-                double tweight = (ExGate && config!.Enabled && (timeScaleU * accelResponseTimeScaleU != 1.0) && (weight != 1.0)) ?
+                double tweight = (ExGate && config.Enabled && (timeScaleU * accelResponseTimeScaleU != 1.0) && (weight != 1.0)) ?
                     UAdjust(weight, timeScaleU * accelResponseTimeScaleU) :
                     weight; 
 
@@ -630,6 +645,7 @@ namespace Saturn
             else {
                 adaptOutput = smoothOutput;
             }
+
 
         }
 
@@ -656,6 +672,8 @@ namespace Saturn
             intpos = Enumerable.Repeat(p, intpos.Length).ToArray();
             c1p = Enumerable.Repeat(p, c1p.Length).ToArray();
             stpos = p;
+
+            ERefresh();
             
             latestReport = runningStopwatch.Elapsed;
             tOffset = 0;
@@ -665,6 +683,7 @@ namespace Saturn
         {
             filterOutput = pos[0];
             clampHold = pos[0];
+            shiftedHold = pos[0];
             clampOutput = pos[0];
             smoothHold = pos[0];
             smoothOutput = pos[0];
@@ -745,15 +764,15 @@ namespace Saturn
 
         public void HoverSettings() {
             
-            frameShift = config!.PredictionRatioHover;
-            reverseSmoothing = config!.ReverseEmaHover;
-            rInner = config!.InnerRadiusHover;
-            stockWeight = config!.StockEmaWeightHover;
-            smoothDist = config!.DistanceSmoothingHover;
-            sepMult = config!.SepMultHover;
-            aResponse = config!.AccelResponseHover;
-            areaScale = config!.AreaScaleHover;
-            xMod = config!.XModifierHover;
+            frameShift = config.PredictionRatioHover;
+            reverseSmoothing = config.ReverseEmaHover;
+            rInner = config.InnerRadiusHover;
+            stockWeight = config.StockEmaWeightHover;
+            smoothDist = config.DistanceSmoothingHover;
+            sepMult = config.SepMultHover;
+            aResponse = config.AccelResponseHover;
+            areaScale = config.AreaScaleHover;
+            xMod = config.XModifierHover;
             
             frameShiftU = frameShift;
             rInnerU = rInner;
@@ -771,17 +790,17 @@ namespace Saturn
         public double stockWeightU, rInnerU, smoothDistU, sepMultU, aResponseU, dacOuterU, areaScaleU, xModU, frameShiftU, timeScaleU, distanceSmoothingTimeScaleU, accelResponseTimeScaleU;
 
         public void ScaleValues() {
-            ScaleValue(config!.ScaleStockEmaWeightByMovement, ref stockWeightU, stockWeight, config!.StartStockEmaWeightMult, config!.EndStockEmaWeightMult);
-            ScaleValue(config!.ScaleInnerRadiusByMovement, ref rInnerU, rInner, config!.StartInnerRadiusMult, config!.EndInnerRadiusMult);
-            ScaleValue(config!.ScaleDistanceSmoothingByMovement, ref smoothDistU, smoothDist, config!.StartDistanceSmoothingMult, config!.EndDistanceSmoothingMult);
-            ScaleValue(config!.ScaleSepMultByMovement, ref sepMultU, sepMult, config!.StartSepMultMult, config!.EndSepMultMult);
-            ScaleValue(config!.ScaleAccelResponseByMovement, ref aResponseU, aResponse, config!.StartAccelResponseMult, config!.EndAccelResponseMult);
-            ScaleValue(config!.ScaleAreaScaleByMovement, ref areaScaleU, areaScale, config!.StartAreaScaleMult, config!.EndAreaScaleMult);
-            ScaleValue(config!.ScaleXModifierByMovement, ref xModU, xMod, config!.StartXModifierMult, config!.EndXModifierMult);
-            ScaleValue(config!.ScalePredictionRatioByMovement, ref frameShiftU, frameShift, config!.StartPredictionRatioMult, config!.EndPredictionRatioMult);
-            ScaleValue(config!.ScaleTimeScaleByMovement, ref timeScaleU, timeScale, config!.StartTimeScaleMult, config!.EndTimeScaleMult);
-            ScaleValue(config!.ScaleDistanceSmoothingTimeScaleByMovement, ref distanceSmoothingTimeScaleU, distanceSmoothingTimeScale, config!.StartDistanceSmoothingTimeScaleMult, config!.EndDistanceSmoothingTimeScaleMult);
-            ScaleValue(config!.ScaleAccelResponseTimeScaleByMovement, ref accelResponseTimeScaleU, accelResponseTimeScale, config!.StartAccelResponseTimeScaleMult, config!.EndAccelResponseTimeScaleMult);
+            ScaleValue(config.ScaleStockEmaWeightByMovement, ref stockWeightU, stockWeight, config.StartStockEmaWeightMult, config.EndStockEmaWeightMult);
+            ScaleValue(config.ScaleInnerRadiusByMovement, ref rInnerU, rInner, config.StartInnerRadiusMult, config.EndInnerRadiusMult);
+            ScaleValue(config.ScaleDistanceSmoothingByMovement, ref smoothDistU, smoothDist, config.StartDistanceSmoothingMult, config.EndDistanceSmoothingMult);
+            ScaleValue(config.ScaleSepMultByMovement, ref sepMultU, sepMult, config.StartSepMultMult, config.EndSepMultMult);
+            ScaleValue(config.ScaleAccelResponseByMovement, ref aResponseU, aResponse, config.StartAccelResponseMult, config.EndAccelResponseMult);
+            ScaleValue(config.ScaleAreaScaleByMovement, ref areaScaleU, areaScale, config.StartAreaScaleMult, config.EndAreaScaleMult);
+            ScaleValue(config.ScaleXModifierByMovement, ref xModU, xMod, config.StartXModifierMult, config.EndXModifierMult);
+            ScaleValue(config.ScalePredictionRatioByMovement, ref frameShiftU, frameShift, config.StartPredictionRatioMult, config.EndPredictionRatioMult);
+            ScaleValue(config.ScaleTimeScaleByMovement, ref timeScaleU, timeScale, config.StartTimeScaleMult, config.EndTimeScaleMult);
+            ScaleValue(config.ScaleDistanceSmoothingTimeScaleByMovement, ref distanceSmoothingTimeScaleU, distanceSmoothingTimeScale, config.StartDistanceSmoothingTimeScaleMult, config.EndDistanceSmoothingTimeScaleMult);
+            ScaleValue(config.ScaleAccelResponseTimeScaleByMovement, ref accelResponseTimeScaleU, accelResponseTimeScale, config.StartAccelResponseTimeScaleMult, config.EndAccelResponseTimeScaleMult);
             ClampValues();
         }
 
@@ -789,34 +808,47 @@ namespace Saturn
             value = stock;
             if (code > 0) {
                 if ((code & 1) == 1) {
-                    value *= double.Lerp(start, end, Smoothstep(vel[0], config!.StartVelocityThreshold, config!.EndVelocityThreshold));
+                    value *= double.Lerp(start, end, Smoothstep(vel[0], config.StartVelocityThreshold, config.EndVelocityThreshold));
                 }
                 if ((code & 2) == 2) {
-                    value *= double.Lerp(start, end, Smoothstep(accel[0], config!.StartAccelThreshold, config!.EndAccelThreshold));
+                    value *= double.Lerp(start, end, Smoothstep(accel[0], config.StartAccelThreshold, config.EndAccelThreshold));
                 }
                 if ((code & 4) == 4) {
-                    value *= double.Lerp(start, end, Smoothstep(jerk[0], config!.StartJerkThreshold, config!.EndJerkThreshold));
+                    value *= double.Lerp(start, end, Smoothstep(jerk[0], config.StartJerkThreshold, config.EndJerkThreshold));
                 }
                 if ((code & 8) == 8) {
-                    value *= double.Lerp(start, end, Smoothstep(Math.Abs(accel[0]), config!.StartAbsAThreshold, config!.EndAbsAThreshold));
+                    value *= double.Lerp(start, end, Smoothstep(Math.Abs(accel[0]), config.StartAbsAThreshold, config.EndAbsAThreshold));
                 }
                 if ((code & 16) == 16) {
-                    value *= double.Lerp(start, end, Smoothstep(accel[0] + Math.Abs(jerk[0]), config!.StartAAbsJThreshold, config!.EndAAbsJThreshold));
+                    value *= double.Lerp(start, end, Smoothstep(accel[0] + Math.Abs(jerk[0]), config.StartAAbsJThreshold, config.EndAAbsJThreshold));
                 }
                 if ((code & 32) == 32) {
-                    value *= double.Lerp(start, end, Smoothstep(Math.Abs(accel[0]) + Math.Abs(jerk[0]), config!.StartAbsAAbsJThreshold, config!.EndAbsAAbsJThreshold));
+                    value *= double.Lerp(start, end, Smoothstep(Math.Abs(accel[0]) + Math.Abs(jerk[0]), config.StartAbsAAbsJThreshold, config.EndAbsAAbsJThreshold));
                 }
             }
         }
 
         public void SetValues() {
-            distanceSmoothingPower = config!.DistanceSmoothingPower;
-            accelResponsePower = config!.AccelResponsePower;
-            accelResponseInner = config!.AccelResponseBaseInnerDistanceThreshold;
-            accelResponseOuter = config!.AccelResponseBaseOuterDistanceThreshold;
-            accelResponseTimeScale = config!.AccelResponseTimeScale;
-            recoveryLimit = config!.InnerRadiusRecoveryLimit;
+            distanceSmoothingPower = config.DistanceSmoothingPower;
+            accelResponsePower = config.AccelResponsePower;
+            accelResponseInner = config.AccelResponseBaseInnerDistanceThreshold;
+            accelResponseOuter = config.AccelResponseBaseOuterDistanceThreshold;
+            timeScale = config.TimeScale;
+            distanceSmoothingTimeScale = config.DistanceSmoothingTimeScale;
+            accelResponseTimeScale = config.AccelResponseTimeScale;
+            recoveryLimit = config.InnerRadiusRecoveryLimit;
+            shiftHold = config.ShiftHold;
         }
+
+        public double distanceSmoothingPower;
+        public double accelResponsePower;
+        public double accelResponseInner;
+        public double accelResponseOuter;
+        public double timeScale;
+        public double distanceSmoothingTimeScale;
+        public double accelResponseTimeScale;
+        public double recoveryLimit;
+        public bool shiftHold;
 
         public void ClampValues() {
             stockWeightU = Math.Clamp(stockWeightU, 0.001, 1.0);
@@ -911,20 +943,12 @@ namespace Saturn
         public double rInner, stockWeight, smoothDist, sepMult, aResponse, msOverride, areaScale, xMod;
         public bool tabletToggle;
         public Double2 clampHold, clampOutput;
+        public Double2 shiftedHold;
         public Double2 smoothOutput;
         public Double2 adaptOutput;
         public Double2 filterOutput;
 
         public double accumulatedRFMovementTime;
-
-        public double distanceSmoothingPower;
-        public double accelResponsePower;
-        public double accelResponseInner;
-        public double accelResponseOuter;
-        public double timeScale;
-        public double distanceSmoothingTimeScale;
-        public double accelResponseTimeScale;
-        public double recoveryLimit;
 
         public bool interp;
         public int wireCode;

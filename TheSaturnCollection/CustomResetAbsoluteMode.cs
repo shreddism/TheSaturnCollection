@@ -22,14 +22,14 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
 
     public override void Read(IDeviceReport deviceReport) 
     {
-        if (!initFlag) 
+        if (!initFlag || !refresh) 
             AttemptInitialization();
 
         bool dropFlag = false;
 
         if (initFlag) {
             if (deviceReport is ITabletReport report) {
-
+                reportIsFirstAfterConsume = true;
                 CustomResetAbsoluteModeBinding.bAuxFlag = false;
                 float readTime = (float)readStopwatch.Restart().TotalMilliseconds;
                 if (tTimeProximity && maxDrops > 0 && tResetTime > 0 && readTime > tResetTime) {
@@ -56,7 +56,7 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
 
     protected override IAbsolutePositionReport Transform(IAbsolutePositionReport report) 
     {
-        if (!initFlag) 
+        if (!initFlag || !refresh) 
             AttemptInitialization();
 
         bReleaseFlag = CustomResetAbsoluteModeBinding.bReleaseFlag;
@@ -101,6 +101,7 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
             initPersistHandledFlag = false;
             resetCode = 0;
             report.Position = lastPostTransformInput;
+
             return report;
         }
         else if ((!transformCompleteFlag) && (resetCode == 0) && (persistentResetCode > 0)) {
@@ -256,7 +257,7 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
 
     protected override void OnOutput(IDeviceReport value)
     {
-        if (!initFlag) 
+        if (!initFlag || !refresh) 
             AttemptInitialization();
 
         if (initFlag) {
@@ -281,19 +282,6 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                     }
                     report.Position = lastOutput; 
                 }
-                if (tPixelGridFlag && outputCompleteIgnores == 0 && transformCompleteFlag) {
-                    PostProcessingStatUpdate(report.Position);
-                    pxOutput = pos[0];
-                    pxOutput *= tPixelGridMult;
-                    pxOutput = new Vector2(MathF.Floor(pos[0].X), MathF.Floor(pos[0].Y));
-                    pxOutput /= tPixelGridMult;
-                    if ((!tDynamicMode) || ((Vector2.Distance(checkPos, pos[0]) + (dir[0] + dir[1] + dir[2] + dir[3]).Length() >= 1 / tPixelGridMult) && (pxOutput != outputPos[0]))) {
-                        checkPos = pos[0];
-                        InsertAtFirst(outputPos, pxOutput);
-                    }  
-
-                    report.Position = outputPos[0];
-                }
 
                 lastOutput = report.Position;
             }
@@ -301,12 +289,6 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
             reportIsFirstAfterConsume = false;
             base.OnOutput(value);
         }
-    }
-
-    void PostProcessingStatUpdate(Vector2 input)
-    {
-        InsertAtFirst(pos, input);
-        InsertAtFirst(dir, pos[0] - pos[1]);
     }
     
     public void AttemptInitialization()
@@ -328,12 +310,10 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                 tResetTime = CustomResetAbsoluteModeSettings.tResetTime;
                 tResetCode = CustomResetAbsoluteModeSettings.tResetCode;
                 tTimeProximity = CustomResetAbsoluteModeSettings.tTimeProximity;
-                tPixelGridMult = CustomResetAbsoluteModeSettings.tPixelGridMult;
-                tPixelGridFlag = (tPixelGridMult >= 1.0f);
-                tDynamicMode = CustomResetAbsoluteModeSettings.tDynamicMode;
                 tLogInfo = CustomResetAbsoluteModeSettings.tLogInfo;
                 tResetCode = CustomResetAbsoluteModeSettings.tResetCode;
                 initFlag = true;
+
                 if (!saveCenterFlag) {
                     saveInputPosition = stockInput;
                     saveOutputPosition = stockOutput;
@@ -341,21 +321,20 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
                 }
 
                 tPersistenceCode = CustomResetAbsoluteModeSettings.tPersistenceCode;
-                if (tPersistenceCode == 2) {
+                if (tPersistenceCode == 2 && !refresh) {
                     Input.Position = saveInputPosition;
                     Output.Position = saveOutputPosition;
                     TransformationMatrix = base.CreateTransformationMatrix();
                 }
             }  
         }
+        if (!refresh) refresh = true;
     }
     
     public void DragUpdate()
     {   
         UpdateInputPos(dragHold + new Vector2(dragOffset.X / mmScale.X,
                                               dragOffset.Y / mmScale.Y));
-            
-        
     }  
 
     public void BaseTransform(IAbsolutePositionReport report)
@@ -378,12 +357,7 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
         saveOutputPosition = position;
     }
 
-    const int HMAX = 4;
-    Vector2[] pos = new Vector2[HMAX];
-    Vector2[] dir = new Vector2[HMAX];
-    Vector2[] outputPos = new Vector2[HMAX];
-    Vector2 checkPos;
-    Vector2 pxOutput;
+    public static bool refresh = true;
 
     bool initPersistHandledFlag = false;
 
@@ -439,9 +413,6 @@ public class CustomResetAbsoluteMode : AbsoluteOutputMode
 
     bool tTimeProximity;
 
-    float tPixelGridMult;
-    bool tPixelGridFlag;
-    bool tDynamicMode;
     bool tLogInfo;
 }
 
@@ -547,7 +518,7 @@ public class CustomResetAbsoluteModeSettings : ITool
     [Property("Near Proximity Extra Position Drops"), DefaultPropertyValue(DEFAULT_NEAR_PROXIMITY_DROPS), ToolTip
     (
         "Some tablets send reports with this confidence flag.\n" +
-        "This amount of 'valid' tablet reports will be thrown out after the last untrustworthy report.\n" +
+        "This number of 'valid' tablet reports will be thrown out after the last untrustworthy report.\n" +
         "This is because pen buttons can be pressed down but show up as released in this situation.\n" +
         "This setting can be crucial for function."
     )]
@@ -562,32 +533,6 @@ public class CustomResetAbsoluteModeSettings : ITool
     )]
     public bool timeProximity { set; get; }
     internal static bool tTimeProximity = DEFAULT_TIME_PROXIMITY;
-
-    private const float DEFAULT_PIXEL_GRID_MULT = 0.0f;
-    [Property("Pixel Grid Resolution Scale"), DefaultPropertyValue(DEFAULT_PIXEL_GRID_MULT), ToolTip
-    (
-        "Possible range: 1.0 - any, default 0.0\n" +
-        "If set below 1.0, this has no effect.\n\n" +
-        "This floors the pixel position of the cursor.\n" +
-        "This multiplies the position by its value before flooring it, increasing resolution.\n" +
-        "If set to 1.0 the cursor is set to whole pixels, if set to 2.0 the cursor is set to quadrants, and so on."
-    )]
-    public float pixelGridMult
-    {
-        set => _pixelGridMult = Math.Max(0.0f, value);
-        get => _pixelGridMult;
-    }
-    public float _pixelGridMult;
-    internal static float tPixelGridMult = DEFAULT_PIXEL_GRID_MULT;
-
-    private const bool DEFAULT_DYNAMIC_MODE = true;
-    [BooleanProperty("Dynamic Mode", ""), DefaultPropertyValue(DEFAULT_DYNAMIC_MODE), ToolTip
-    (
-        "If this is enabled and the above setting is 1.0 or above, the cursor won't move if the input position has not changed by one scaled pixel since the last move.\n" +
-        "Also takes velocity into consideration, so it doesn't refuse to move for little reason."
-    )]
-    public bool dynamicMode { set; get; }
-    internal static bool tDynamicMode = DEFAULT_DYNAMIC_MODE;
 
     private const string DEFAULT_PERSISTENCE_MODE = "Hard";
     private const int DEFAULT_PERSISTENCE_CODE = 2;
@@ -608,9 +553,9 @@ public class CustomResetAbsoluteModeSettings : ITool
     )]
     public bool logInfo { set; get; }
     internal static bool tLogInfo = DEFAULT_LOG_INFO;
-
-    public bool Initialize()
-    {
+    
+    [OnDependencyLoad]
+    public void trueInit() {
         tResetTime = resetTime;
         tTimeProximity = timeProximity;
         tResetMode = resetMode;
@@ -623,14 +568,17 @@ public class CustomResetAbsoluteModeSettings : ITool
             _ => 0
         };
         tNearProximityDrops = nearProximityDrops;
-        tPixelGridMult = pixelGridMult;
-        tDynamicMode = dynamicMode;
         tPersistenceMode = persistenceMode;
         tPersistenceCode = tPersistenceMode switch {
             "Hard" => 2,
             _ => 1
         };
         tLogInfo = logInfo;
+        CustomResetAbsoluteMode.refresh = false;
+    }
+
+    public bool Initialize()
+    {
         return true;
     }
 
@@ -640,10 +588,9 @@ public class CustomResetAbsoluteModeSettings : ITool
         timeProximity = DEFAULT_TIME_PROXIMITY;
         tResetCode = DEFAULT_RESET_CODE;
         tNearProximityDrops = DEFAULT_NEAR_PROXIMITY_DROPS;
-        tPixelGridMult = DEFAULT_PIXEL_GRID_MULT;
-        tDynamicMode = DEFAULT_DYNAMIC_MODE;
         tPersistenceCode = DEFAULT_PERSISTENCE_CODE;
         tLogInfo = DEFAULT_LOG_INFO;
+        CustomResetAbsoluteMode.refresh = true;
     }
 }
 
