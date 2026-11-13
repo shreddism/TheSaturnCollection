@@ -403,7 +403,6 @@ namespace Saturn
             adjpoint = new Double2[maxLength];
 
             if (maxSamples != weightedSamples || derivatives != weightedDegree) {
-                Console.WriteLine("k");
                 int max = derivatives + 3;
                 weights = new double[max][][][];
                 for (int i = 1; i < max; i++) {
