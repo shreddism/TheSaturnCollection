@@ -27,16 +27,18 @@ namespace Saturn
         public double TimeScale { get; set; } = 1.0;
         public double DistanceSmoothingTimeScale { get; set; } = 1.0;
         public double AccelResponseTimeScale { get; set; } = 1.0;
-
-        public bool DisableTabletTweaks { get; set; } = false;
-        public bool VecMatMul { get; set; } = false;
-
         public double DistanceSmoothingPower { get; set; } = 2.0;
         public double AccelResponsePower { get; set; } = 3.0;
         public double AccelResponseBaseInnerDistanceThreshold { get; set; } = 500.0;
         public double AccelResponseBaseOuterDistanceThreshold { get; set; } = 3500.0;
         public double InnerRadiusRecoveryLimit { get; set; } = 1.0;
         public bool ShiftHold { get; set; } = false;
+        public bool UseDirectionForClamping { get; set; } = true;
+
+        public bool DisableTabletTweaks { get; set; } = false;
+        public bool VecMatMul { get; set; } = false;
+
+        public int MovementScalingWindow { get; set; } = 1;
 
         public int ScaleStockEmaWeightByMovement { get; set; } = 0;                   
         public int ScaleInnerRadiusByMovement { get; set; } = 0;
@@ -97,7 +99,6 @@ namespace Saturn
                 vmm = true;
             }
         }
-
     }
 
     public class MultifilterConfigParser 

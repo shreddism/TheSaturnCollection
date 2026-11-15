@@ -23,7 +23,7 @@ namespace Saturn
             "Distance works off comparing points, while Axis separates the axes."
         )]
         public string lockMode { get; set; } = "Distance";
-        public static IEnumerable<string> lockModes { get; set; } = new List<string> { "Distance - Radial", "Axis - Radial", "Distance - Instant", "Axis - Instant" };
+        public static IEnumerable<string> lockModes { get; set; } = new List<string> { "Distance - Radial", "Axis - Radial", "Distance - Instant", "Axis - Instant"};
     
         [Property("Lock Threshold"), DefaultPropertyValue(0.0), Unit("px")]
         public double lockThreshold { 
@@ -35,8 +35,8 @@ namespace Saturn
         [BooleanProperty("Lock Compensation", ""), DefaultPropertyValue(false), ToolTip
         (
             "Attempts to compensate for the area change that is brought on by locking.\n" +
-            "On the axis radial setting, the area is usually effectively shrunk at the borders by the threshold value.\n" +
-            "This multiplies input so that on that setting the input's range is brought back. Extends area on other settings."
+            "On the radial settings, the area is usually effectively shrunk at the borders by the threshold value.\n" +
+            "This multiplies input so that on that setting the input's range is brought back. Extends area on the instant settings."
         )]
         public bool compensation { set; get; } = false;
 
@@ -61,16 +61,29 @@ namespace Saturn
                     currPosition = new Double2(report.Position);
                     displayCenter = new Double2(GetDisplayCenter());
                     displayArea = new Double2(GetDisplayArea());
-                    minPoint = displayCenter - (displayArea * 0.5);
-                    maxPoint = displayCenter + (displayArea * 0.5);
+                    relativeCenter = displayArea * 0.5;
+                    minPoint = displayCenter - (relativeCenter);
+                    maxPoint = displayCenter + (relativeCenter);
                     
                     if (lockThreshold != 0.0) {
                         switch (lockCode) {
                             case 1:
                                 Double2 diff = (currPosition - lockPosition);
-                                double length = diff.Length();
-                                if (length > lockThreshold) {
-                                    lockPosition += (length - lockThreshold) * diff.Normalize();
+                                Double2 dir = (currPosition - lastPosition);
+                                double length = diff.Length() - lockThreshold;
+                                if (length > 0 && Double2.DotOfNormalized(dir, diff) > 0)
+                                    lockPosition += (length * dir.Normalize());
+
+                                double currDirAngle = dir.Angle();
+    
+                                if (Math.Abs(currPosition.X - displayCenter.X) == (relativeCenter.X) && Math.Abs(lockPosition.X - displayCenter.X) < (relativeCenter.X - lockThreshold) && dir.X == 0) {
+                                    if (currPosition.X >= displayCenter.X) lockPosition.X = maxPoint.X - lockThreshold;
+                                    else lockPosition.X = minPoint.X + lockThreshold;   
+                                }
+
+                                if (Math.Abs(currPosition.Y - displayCenter.Y) == (relativeCenter.Y) && Math.Abs(lockPosition.Y - displayCenter.Y) < (relativeCenter.Y - lockThreshold) && dir.Y == 0) {
+                                    if (currPosition.Y >= displayCenter.Y) lockPosition.Y = maxPoint.Y - lockThreshold;
+                                    else lockPosition.Y = minPoint.Y + lockThreshold;    
                                 }
                             break;
                             case 2:
@@ -95,6 +108,8 @@ namespace Saturn
                     }
                     else lockPosition = currPosition;
 
+                    lastPosition = currPosition;
+
                     if (compensation) {
                         compPosition = lockPosition - displayCenter;
                         compPosition.X *= (displayCenter.X) / (displayCenter.X - lockThreshold);
@@ -116,10 +131,10 @@ namespace Saturn
             Emit.Invoke(value);
         }
 
-        Double2 currPosition, lockPosition, compPosition, outputPosition;
+        Double2 currPosition, lastPosition, lockPosition, compPosition, outputPosition;
         int lockCode = 1;
 
-        Double2 displayCenter, displayArea;
+        Double2 displayCenter, displayArea, relativeCenter;
 
         Double2 minPoint, maxPoint;
 
