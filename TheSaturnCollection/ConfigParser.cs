@@ -32,7 +32,6 @@ namespace Saturn
         public double AccelResponseBaseInnerDistanceThreshold { get; set; } = 500.0;
         public double AccelResponseBaseOuterDistanceThreshold { get; set; } = 3500.0;
         public double InnerRadiusRecoveryLimit { get; set; } = 1.0;
-        public bool ShiftHold { get; set; } = false;
         public bool UseDirectionForClamping { get; set; } = true;
 
         public bool DisableTabletTweaks { get; set; } = false;

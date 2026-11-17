@@ -509,23 +509,22 @@ namespace Saturn
         void RF(Double2 input) 
         {
             if (rInnerU > 0) {
-                if (shiftHold) {
-                    Double2 shiftedDist = shiftedHold - clampHold;
-                    shiftedHold = clampHold + Math.Min(rInnerU, shiftedDist.Length()) * shiftedDist.Normalize();
-                }
-
-                Double2 dist = shiftHold ? 
-                    input - shiftedHold :
-                    input - clampHold;
-
+                Double2 dist = input - clampHold;
+                    
                 double ringDirLength = Math.Max(0, dist.Length() - rInnerU);
 
                 if (ringDirLength > 0) {
                     Double2 ringDir = Double2.Zero;
+
+                    Double2 move = (input - lastClampInput);
+
                     if (useDirectionForClamping) {
-                        Double2 normMove = (input - lastClampInput).Normalize();
-                        if (Double2.Dot(normMove, dist.Normalize()) > 0) {
-                            ringDir = ringDirLength * normMove;
+                        if (Double2.Dot(move, dist) >= 0) {
+                            ringDir = ringDirLength * move.Normalize();
+                        }
+                        else {
+                            double recoveryScale = Smoothstep(ringDirLength, 0, rInnerU);
+                            clampHold = input - double.Lerp(dist.Length(), rInnerU, recoveryScale) * Double2.Lerp(dist.Normalize(), move.Normalize(), recoveryScale).Normalize();
                         }
                     }
                     else {
@@ -533,14 +532,23 @@ namespace Saturn
                     }
 
                     clampHold += ringDir;
-                    clampOutput += ringDir;
-                    
-                    if (shiftHold) 
-                        shiftedHold += ringDir;
 
                     Double2 recoveryPoint = (recoveryLimit == 1.0) ?
                     (input) :
-                    (Double2.Lerp(shiftHold ? shiftedHold : clampHold, input, recoveryLimit));
+                    (Double2.Lerp(clampHold, input, recoveryLimit));
+
+                    if (useDirectionForClamping && recoveryLimit > 0.0) {
+                        Double2 testMovedClamp = clampOutput + ringDir;
+                        if (Double2.Dot(recoveryPoint - testMovedClamp, recoveryPoint - clampHold) < 0 && Double2.Dot(recoveryPoint - clampOutput, recoveryPoint - clampHold) > 0) {
+                            clampOutput = recoveryPoint;
+                        }
+                        else {
+                            clampOutput = testMovedClamp;
+                        }
+                    }
+                    else {
+                        clampOutput += ringDir;
+                    }   
 
                     double xwa = XWA(expect, updateTime, wireAdjustFlag, reportMsAvg, expect, pointFlag);
 
@@ -548,10 +556,9 @@ namespace Saturn
                         xwa * timeScaleU :
                         xwa;
 
-                    if (shiftHold) 
-                        shiftedHold += (clampHold - shiftedHold).Normalize() * Math.Min((clampHold - shiftedHold).Length(), ringDirLength * 0.05);
+                    double lerpWeight = UAdjust(inversion(Smoothstep(ringDirLength, Math.Min(2.5, Math.Max(0.5, rInnerU * 0.1)), rInnerU + 5.0), 1.75, 1.25), txwa);
 
-                    clampOutput = Double2.Lerp(clampOutput, recoveryPoint, UAdjust(inversion(Smoothstep(ringDirLength, -0.01, rInnerU + 5.0), 1.75, 1.5), txwa));
+                    clampOutput = Double2.Lerp(clampOutput, recoveryPoint, lerpWeight);
 
                     double newDistLength = Double2.Distance(recoveryPoint, clampOutput);
 
@@ -575,15 +582,11 @@ namespace Saturn
                     else {
                         clampOutput = recoveryPoint;
                     }
-                    
                 }
                 else {
                     clampLock = Math.Max(clampLock - 1, 0);
                     accumulatedRFMovementTime -= 5.0 * rfStopwatch.Restart().TotalMilliseconds;
                     accumulatedRFMovementTime = Math.Max(accumulatedRFMovementTime, 0.0);
-
-                    if (shiftHold)
-                        shiftedHold = Double2.Lerp(shiftedHold, input, 0.05);
                 }
 
                 lastClampInput = input;
@@ -696,7 +699,6 @@ namespace Saturn
         {
             filterOutput = pos[0];
             clampHold = pos[0];
-            shiftedHold = pos[0];
             lastClampInput = pos[0];
             clampOutput = pos[0];
             smoothHold = pos[0];
@@ -852,7 +854,6 @@ namespace Saturn
             distanceSmoothingTimeScale = config.DistanceSmoothingTimeScale;
             accelResponseTimeScale = config.AccelResponseTimeScale;
             recoveryLimit = config.InnerRadiusRecoveryLimit;
-            shiftHold = config.ShiftHold;
             useDirectionForClamping = config.UseDirectionForClamping;
             moveScaleWindow = Math.Clamp(config.MovementScalingWindow, 1, 128);
             if (moveScaleWindow > 1) {
@@ -868,7 +869,6 @@ namespace Saturn
         public double distanceSmoothingTimeScale;
         public double accelResponseTimeScale;
         public double recoveryLimit;
-        public bool shiftHold;
         public bool useDirectionForClamping;
         public int moveScaleWindow;
 
@@ -964,12 +964,14 @@ namespace Saturn
         public double rInner, stockWeight, smoothDist, sepMult, aResponse, msOverride, areaScale, xMod;
         public bool tabletToggle;
         public Double2 clampHold, clampOutput;
-        public Double2 shiftedHold, lastClampInput;
+        public Double2 lastClampInput;
         public Double2 smoothOutput;
         public Double2 adaptOutput;
         public Double2 filterOutput;
 
         public double accumulatedRFMovementTime;
+
+        public bool RFDirMovementActive;
 
         public bool interp;
         public int wireCode;

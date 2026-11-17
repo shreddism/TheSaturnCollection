@@ -321,6 +321,7 @@ namespace Saturn
                 Double2 result = Double2.Lerp(Double2.Rotate(output1, angle) + pos[fulcrum], output2, character);
 
                 report.Position = result.AsVector2();
+
             }
             Emit.Invoke(value);
         }
@@ -401,6 +402,7 @@ namespace Saturn
             fulcrum = Math.Max(1, samples / 8);
             pos = new Double2[maxLength];
             adjpoint = new Double2[maxLength];
+
 
             if (maxSamples != weightedSamples || derivatives != weightedDegree) {
                 int max = derivatives + 3;

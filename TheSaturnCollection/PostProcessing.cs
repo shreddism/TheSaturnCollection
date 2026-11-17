@@ -64,18 +64,22 @@ namespace Saturn
                     relativeCenter = displayArea * 0.5;
                     minPoint = displayCenter - (relativeCenter);
                     maxPoint = displayCenter + (relativeCenter);
-                    
                     if (lockThreshold != 0.0) {
                         switch (lockCode) {
                             case 1:
                                 Double2 diff = (currPosition - lockPosition);
                                 Double2 dir = (currPosition - lastPosition);
                                 double length = diff.Length() - lockThreshold;
-                                if (length > 0 && Double2.DotOfNormalized(dir, diff) > 0)
-                                    lockPosition += (length * dir.Normalize());
+                                if (length > 0) {
+                                    if (Double2.DotOfNormalized(dir, diff) > 0) {
+                                        lockPosition += (length * dir.Normalize());
+                                    }
 
-                                double currDirAngle = dir.Angle();
-    
+                                    Double2 newdiff = (currPosition - lockPosition);
+                                    double scale = Smoothstep(newdiff.Length(), lockThreshold * 1.5, lockThreshold * 3.0);
+                                    lockPosition = Double2.Lerp(lockPosition, currPosition - lockThreshold * (newdiff.Normalize()), scale);
+                                }
+
                                 if (Math.Abs(currPosition.X - displayCenter.X) == (relativeCenter.X) && Math.Abs(lockPosition.X - displayCenter.X) < (relativeCenter.X - lockThreshold) && dir.X == 0) {
                                     if (currPosition.X >= displayCenter.X) lockPosition.X = maxPoint.X - lockThreshold;
                                     else lockPosition.X = minPoint.X + lockThreshold;   
@@ -94,7 +98,7 @@ namespace Saturn
                             break;
                             case 3:
                                 if (Double2.Distance(currPosition, lockPosition) > lockThreshold) 
-                                    lockPosition = currPosition;        
+                                    lockPosition = currPosition;    
                             break;
                             case 4:
                                 if (Math.Abs(currPosition.X - lockPosition.X) > lockThreshold)
@@ -107,8 +111,6 @@ namespace Saturn
                         }
                     }
                     else lockPosition = currPosition;
-
-                    lastPosition = currPosition;
 
                     if (compensation) {
                         compPosition = lockPosition - displayCenter;
@@ -125,6 +127,8 @@ namespace Saturn
 
                     outputPosition = Double2.Clamp(outputPosition, minPoint, maxPoint);
 
+                    lastPosition = currPosition;
+
                     report.Position = outputPosition.AsVector2();
                 }
             }
@@ -133,11 +137,8 @@ namespace Saturn
 
         Double2 currPosition, lastPosition, lockPosition, compPosition, outputPosition;
         int lockCode = 1;
-
         Double2 displayCenter, displayArea, relativeCenter;
-
         Double2 minPoint, maxPoint;
-
         OutputMode outputMode;
 
         [OnDependencyLoad]
